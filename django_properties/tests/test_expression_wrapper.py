@@ -12,6 +12,7 @@ def obj(**kwargs):
     ('test', Value('test')),
     (1.0, Value(1.0)),
     (1.0, Value(1, output_field=FloatField())),
+    (2, Value(1) + Value(1)),
 ])
 def test_value(expected, value):
     wrapped_value = expression_wrapper.wrap(value)
