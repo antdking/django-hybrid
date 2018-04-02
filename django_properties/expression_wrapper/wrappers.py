@@ -3,7 +3,10 @@ from typing import AnyStr, Any, Callable, Union
 
 from django.core.exceptions import FieldError
 from django.db.models import Value, F
-from django.db.models.expressions import CombinedExpression, Combinable, Col, Ref
+from django.db.models.expressions import CombinedExpression, Combinable, Col, Ref, DurationExpression, DurationValue, \
+    Random, ExpressionWrapper as DjangoExpressionWrapper
+from django.utils.crypto import random
+from django.utils.functional import cached_property
 
 from django_properties.expression_wrapper.base import ExpressionWrapper, FakeQuery
 from django_properties.expression_wrapper.registry import register
@@ -24,6 +27,7 @@ class OutputFieldMixin:
 
 
 @register(Value)
+@register(DurationValue)
 class ValueWrapper(ExpressionWrapper, OutputFieldMixin):
     expression = None  # type: Value
 
@@ -86,3 +90,28 @@ def f_resolver(expression: F):
         FakeQuery(),
     )
     return ColWrapper(expression)
+
+
+@register(Random)
+class RandomWrapper(ExpressionWrapper, OutputFieldMixin):
+    expression = None  # type: Random
+
+    def as_python(self, obj: Any):
+        return self.to_value(
+            self.consistent_random,
+        )
+
+    @cached_property
+    def consistent_random(self):
+        return random.random()
+
+
+@register(DjangoExpressionWrapper)
+class ExpressionWrapperWrapper(ExpressionWrapper, OutputFieldMixin):
+    expression = None  # type: DjangoExpressionWrapper
+
+    def as_python(self, obj: Any):
+        from . import wrap
+        wrapped = wrap(self.expression.expression)
+        value = wrapped.as_python(obj)
+        return self.to_value(value)

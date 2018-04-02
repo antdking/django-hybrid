@@ -1,5 +1,5 @@
 import pytest
-from django.db.models import Value, F, CharField
+from django.db.models import Value, F, CharField, ExpressionWrapper
 
 from django_properties import expression_wrapper
 
@@ -38,6 +38,7 @@ def test_field(field_name, value):
     (5, obj(f1=3, f2=2), F('f1')+F('f2')),
     (5, obj(f1=2), F('f1') + 3),
     (8, obj(f1=5), 3 + F('f1')),
+    (str(8), obj(f1=8), ExpressionWrapper(F('f1'), CharField()))
 ])
 def test_field_combining(expected, obj, expression):
     wrapped_expression = expression_wrapper.wrap(expression)
