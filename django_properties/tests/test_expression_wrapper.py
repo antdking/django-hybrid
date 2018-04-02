@@ -1,26 +1,32 @@
-import unittest
-
-from django.db.models import Value, F
-from django.test import TestCase
+import pytest
+from django.db.models import Value, F, FloatField
 
 from django_properties import expression_wrapper
 
-def test_something():
-    assert 1 == 1
+
+def obj(**kwargs):
+    return type('fakeObject', (object,), kwargs)
 
 
-class WrapperTestCase(TestCase):
+@pytest.mark.parametrize('expected,value', [
+    ('test', Value('test')),
+    (1.0, Value(1.0)),
+    (1.0, Value(1, output_field=FloatField())),
+])
+def test_value(expected, value):
+    wrapped_value = expression_wrapper.wrap(value)
+    python_value = wrapped_value.as_python(None)
+    assert python_value == expected
 
-    def test_value(self):
-        value = Value("test")
-        wrapped_value = expression_wrapper.wrap(value)
-        python_value = wrapped_value.as_python(None)
-        self.assertEqual(python_value, "test")
 
-    def test_field(self):
-        field = F('field')
-        obj = type('', (object,), dict(field='test'))
+@pytest.mark.parametrize('field_name,value', [
+    ('test1', 1.0),
+    ('test2', 'value'),
+])
+def test_field(field_name, value):
+    fake_obj = obj(**{field_name: value})
+    field = F(field_name)
+    wrapped_field = expression_wrapper.wrap(field)
 
-        wrapped_field = expression_wrapper.wrap(field)
-        python_value = wrapped_field.as_python(obj)
-        self.assertEqual(python_value, 'test')
+    output_value = wrapped_field.as_python(fake_obj)
+    assert output_value == value
