@@ -1,5 +1,5 @@
 import pytest
-from django.db.models import Value, F, CharField, ExpressionWrapper
+from django.db.models import Value, F, CharField, ExpressionWrapper, Avg
 
 from django_properties import expression_wrapper
 
@@ -43,5 +43,17 @@ def test_field(field_name, value):
 def test_field_combining(expected, obj, expression):
     wrapped_expression = expression_wrapper.wrap(expression)
     output_value = wrapped_expression.as_python(obj)
+
+    assert output_value == expected
+
+
+@pytest.mark.parametrize('expected,inner_obj,expression', [
+    (2, [1, 2, 3], Avg('nested')),
+    (10.5, [0, 1, 3, 6], Avg('nested') + 8),
+])
+def test_aggregates(expected, inner_obj, expression):
+    nested_obj = obj(nested=inner_obj)
+    wrapped_expression = expression_wrapper.wrap(expression)
+    output_value = wrapped_expression.as_python(nested_obj)
 
     assert output_value == expected

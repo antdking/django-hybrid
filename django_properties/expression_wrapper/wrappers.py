@@ -1,10 +1,11 @@
 import operator
+import statistics
 from typing import AnyStr, Any, Callable, Union
 
 from django.core.exceptions import FieldError
-from django.db.models import Value, F
+from django.db.models import Value, F, Avg
 from django.db.models.expressions import CombinedExpression, Combinable, Col, Ref, DurationExpression, DurationValue, \
-    Random, ExpressionWrapper as DjangoExpressionWrapper
+    Random, ExpressionWrapper as DjangoExpressionWrapper, When
 from django.utils.crypto import random
 from django.utils.functional import cached_property
 
@@ -115,3 +116,24 @@ class ExpressionWrapperWrapper(ExpressionWrapper, OutputFieldMixin):
         wrapped = wrap(self.expression.expression)
         value = wrapped.as_python(obj)
         return self.to_value(value)
+
+
+class FuncMixin:
+    def get_source_values(self, obj):
+        from . import wrap
+        for expression in self.resolved_expression.source_expressions:
+            wrapped = wrap(expression)
+            yield wrapped.as_python(obj)
+
+
+@register(Avg)
+class AvgWrapper(ExpressionWrapper, OutputFieldMixin, FuncMixin):
+    expression = None  # type: Avg
+
+    def as_python(self, obj: Any):
+        # we're going to assume there's no filter in this :/
+        # we're also going to assume they're only going to reference a relation
+
+        first_value = next(self.get_source_values(obj))
+        avg = statistics.mean(first_value)
+        return self.to_value(avg)
