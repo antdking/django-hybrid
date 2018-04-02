@@ -3,9 +3,12 @@ import statistics
 from typing import AnyStr, Any, Callable, Union, Iterable
 
 from django.core.exceptions import FieldError
-from django.db.models import Value, F, Avg, Aggregate, Count, Max, Min, StdDev, Sum, Variance
+from django.db.models import Value, F, Avg, Aggregate, Count, Max, Min, StdDev, Sum, Variance, Func
 from django.db.models.expressions import CombinedExpression, Combinable, Col, Ref, DurationExpression, DurationValue, \
     Random, ExpressionWrapper as DjangoExpressionWrapper, When
+from django.db.models.functions import Cast, Coalesce, ConcatPair, Concat, Greatest, Least, Length, Lower, Now, \
+    StrIndex, Substr, Upper
+from django.utils import timezone
 from django.utils.crypto import random
 from django.utils.functional import cached_property
 
@@ -172,3 +175,111 @@ class SumWrapper(AggregateWrapper):
 @register(Variance)
 class VarianceWrapper(AggregateWrapper):
     op = statistics.variance
+
+
+class FuncWrapper(ExpressionWrapper, OutputFieldMixin, FuncMixin):
+    expression = None  # type: Func
+
+
+@register(Cast)
+class CastWrapper(FuncWrapper):
+
+    def as_python(self, obj: Any):
+        first_value = next(self.get_source_values(obj))
+        return self.to_value(first_value)
+
+
+@register(Coalesce)
+class CoalesceWrapper(FuncWrapper):
+
+    def as_python(self, obj: Any):
+        for value in self.get_source_values(obj):
+            if value is not None:
+                return self.to_value(value)
+
+
+@register(ConcatPair)
+class ConcatPairWrapper(FuncWrapper):
+
+    def as_python(self, obj: Any):
+        return self.to_value(
+            ''.join(
+                str(v)
+                for v in self.get_source_values(obj)
+            )
+        )
+
+
+@register(Concat)
+class ConcatWrapper(FuncWrapper):
+    def as_python(self, obj: Any):
+        # Concat uses ConcatPair internally.
+        first_value = next(self.get_source_values(obj))
+        return self.to_value(first_value)
+
+
+@register(Greatest)
+class GreatestWrapper(FuncWrapper):
+    def as_python(self, obj: Any):
+        return self.to_value(
+            max(self.get_source_values(obj))
+        )
+
+
+@register(Least)
+class LeastWrapper(FuncWrapper):
+    def as_python(self, obj: Any):
+        return self.to_value(
+            min(self.get_source_values(obj))
+        )
+
+
+@register(Length)
+class LengthWrapper(FuncWrapper):
+    def as_python(self, obj: Any):
+        return self.to_value(
+            len(next(self.get_source_values(obj)))
+        )
+
+
+@register(Lower)
+class LowerWrapper(FuncWrapper):
+    def as_python(self, obj: Any):
+        value = self.to_value(
+            next(self.get_source_values(obj))
+        )
+        if value:
+            return value.lower()
+        return value
+
+
+@register(Now)
+class NowWrapper(FuncWrapper):
+    def as_python(self, obj: Any):
+        return self.to_value(self.consistent_now)
+
+    @cached_property
+    def consistent_now(self):
+        return timezone.now()
+
+
+@register(StrIndex)
+class StrIndexWrapper(FuncWrapper):
+    def as_python(self, obj: Any):
+        string, lookup = self.get_source_values(obj)
+        try:
+            value = string.index(lookup)
+        except ValueError:
+            value = 0
+        return self.to_value(value)
+
+
+@register(Upper)
+class UpperWrapper(FuncWrapper):
+    def as_python(self, obj: Any):
+        value = self.to_value(
+            next(self.get_source_values(obj))
+        )
+        if value:
+            return value.upper()
+        return value
