@@ -32,3 +32,13 @@ def test_field(field_name, value):
 
     output_value = wrapped_field.as_python(fake_obj)
     assert output_value == value
+
+
+@pytest.mark.parametrize('expected,obj,expression', [
+    (5, obj(f1=3, f2=2), F('f1')+F('f2')),
+])
+def test_field_combining(expected, obj, expression):
+    wrapped_expression = expression_wrapper.wrap(expression)
+    output_value = wrapped_expression.as_python(obj)
+
+    assert output_value == expected
