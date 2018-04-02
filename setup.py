@@ -1,5 +1,5 @@
 from setuptools import setup
 
 setup(
-    test_suite='runtest',
+    test_suite='runtests.runtests',
 )
