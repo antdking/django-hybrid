@@ -5,6 +5,9 @@ from django.test import TestCase
 
 from django_properties import expression_wrapper
 
+def test_something():
+    assert 1 == 1
+
 
 class WrapperTestCase(TestCase):
 
