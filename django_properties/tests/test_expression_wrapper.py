@@ -36,6 +36,8 @@ def test_field(field_name, value):
 
 @pytest.mark.parametrize('expected,obj,expression', [
     (5, obj(f1=3, f2=2), F('f1')+F('f2')),
+    (5, obj(f1=2), F('f1') + 3),
+    (8, obj(f1=5), 3 + F('f1')),
 ])
 def test_field_combining(expected, obj, expression):
     wrapped_expression = expression_wrapper.wrap(expression)
