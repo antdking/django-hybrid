@@ -1,9 +1,9 @@
 import operator
 import statistics
-from typing import AnyStr, Any, Callable, Union
+from typing import AnyStr, Any, Callable, Union, Iterable
 
 from django.core.exceptions import FieldError
-from django.db.models import Value, F, Avg
+from django.db.models import Value, F, Avg, Aggregate, Count, Max, Min, StdDev, Sum, Variance
 from django.db.models.expressions import CombinedExpression, Combinable, Col, Ref, DurationExpression, DurationValue, \
     Random, ExpressionWrapper as DjangoExpressionWrapper, When
 from django.utils.crypto import random
@@ -126,14 +126,49 @@ class FuncMixin:
             yield wrapped.as_python(obj)
 
 
-@register(Avg)
-class AvgWrapper(ExpressionWrapper, OutputFieldMixin, FuncMixin):
-    expression = None  # type: Avg
+class AggregateWrapper(ExpressionWrapper, OutputFieldMixin, FuncMixin):
+    op = None  # type: Callable[Iterable[Any], Any]
+    expression = None  # type: Aggregate
 
     def as_python(self, obj: Any):
         # we're going to assume there's no filter in this :/
         # we're also going to assume they're only going to reference a relation
 
         first_value = next(self.get_source_values(obj))
-        avg = statistics.mean(first_value)
-        return self.to_value(avg)
+        aggregated = self.op(first_value)
+        return self.to_value(aggregated)
+
+
+@register(Avg)
+class AvgWrapper(AggregateWrapper):
+    op = statistics.mean
+
+
+@register(Count)
+class CountWrapper(AggregateWrapper):
+    op = len
+
+
+@register(Max)
+class MaxWrapper(AggregateWrapper):
+    op = max
+
+
+@register(Min)
+class MinWrapper(AggregateWrapper):
+    op = min
+
+
+@register(StdDev)
+class StdDevWrapper(AggregateWrapper):
+    op = statistics.stdev
+
+
+@register(Sum)
+class SumWrapper(AggregateWrapper):
+    op = sum
+
+
+@register(Variance)
+class VarianceWrapper(AggregateWrapper):
+    op = statistics.variance
