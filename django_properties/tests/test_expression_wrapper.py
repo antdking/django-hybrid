@@ -11,8 +11,9 @@ def obj(**kwargs):
 @pytest.mark.parametrize('expected,value', [
     ('test', Value('test')),
     (1.0, Value(1.0)),
-    ('1', Value(1, output_field=CharField())),
-    (2, Value(1) + Value(1)),
+    (str(1), Value(1, output_field=CharField())),
+    (1 + 1, Value(1) + Value(1)),
+    (6 % 5, Value(6) % Value(5))
 ])
 def test_value(expected, value):
     wrapped_value = expression_wrapper.wrap(value)
