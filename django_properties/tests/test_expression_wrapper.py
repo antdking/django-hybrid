@@ -57,3 +57,13 @@ def test_aggregates(expected, inner_obj, expression):
     output_value = wrapped_expression.as_python(nested_obj)
 
     assert output_value == expected
+
+
+@pytest.mark.parametrize('expected,obj,expression', [
+    (5, dict(f1=3, f2=2), F('f1')+F('f2')),
+])
+def test_dictionary_resolving(expected, obj, expression):
+    wrapped_expression = expression_wrapper.wrap(expression)
+    output_value = wrapped_expression.as_python(obj)
+
+    assert output_value == expected
