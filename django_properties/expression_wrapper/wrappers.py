@@ -14,7 +14,7 @@ from django.utils.functional import cached_property
 
 from django_properties.expression_wrapper.base import ExpressionWrapper, FakeQuery
 from django_properties.expression_wrapper.registry import register
-from django_properties.resolve import Resolver
+from django_properties.resolve import get_resolver
 
 
 class OutputFieldMixin:
@@ -79,7 +79,7 @@ class ColWrapper(ExpressionWrapper):
     expression = None  # type: Col
 
     def as_python(self, obj: Any):
-        resolver = Resolver(obj)
+        resolver = get_resolver(obj)
         return resolver.resolve(self.resolved_expression.alias)
 
 
