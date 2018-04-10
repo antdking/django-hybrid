@@ -1,3 +1,4 @@
+import django
 import pytest
 from django.db import models
 from django.db.models import Lookup, F, ExpressionWrapper, Value, Q
@@ -8,6 +9,12 @@ from django_properties.expander import expand_query
 
 
 models.CharField.register_lookup(Lower)
+
+
+skip_if_no_expression_comparison = pytest.mark.skipif(
+    django.VERSION < (2,),
+    reason="Django 2.0+ needed for Expression comparison",
+)
 
 
 class FakeModel(models.Model):
@@ -26,6 +33,7 @@ def lookup_eq_lookup(lookup1: Lookup, lookup2: Lookup) -> bool:
     )
 
 
+@skip_if_no_expression_comparison
 def test_lookup_comparison():
     q1 = Exact(Lower(
         ExpressionWrapper(F('char_field'), output_field=models.CharField())
@@ -45,6 +53,8 @@ def test_lookup_comparison():
     assert not lookup_eq_lookup(q1, q3)
     assert not lookup_eq_lookup(q1, q4)
 
+
+@skip_if_no_expression_comparison
 @pytest.mark.django_db(transaction=True)
 def test_char_expression():
     expected = Exact(Lower(
