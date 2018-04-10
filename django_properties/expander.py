@@ -97,10 +97,10 @@ def expand_child(model: Type[Model], child: Tuple[str, Any]):
             raise Exception("Invalid transform: {}".format(part))
         lookup_expression = expression = transformer(expression)
 
-    lookup_name = remainder[:-1]
+    lookup_name = remainder[-1]
     lookup_class = lookup_expression.get_lookup(lookup_name)
     if not lookup_class:
-        transformer = lookup_expression.get_transformer(part)
+        transformer = lookup_expression.get_transform(part)
         if not transformer:
             raise Exception("invalid transform or field access: {}".format(lookup_name))
         lookup_expression = expression = transformer(expression)
