@@ -37,9 +37,13 @@ def test_lookup_comparison():
         ExpressionWrapper(F('int_field'), output_field=models.IntegerField()),
         Value(2)
     )
+    q4 = Exact(Lower(
+        ExpressionWrapper(F('char_field'), output_field=models.TextField())
+    ), Value(''))
+
     assert lookup_eq_lookup(q1, q2)
     assert not lookup_eq_lookup(q1, q3)
-
+    assert not lookup_eq_lookup(q1, q4)
 
 @pytest.mark.django_db(transaction=True)
 def test_char_expression():
