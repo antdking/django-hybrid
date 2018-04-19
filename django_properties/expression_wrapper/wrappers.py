@@ -355,6 +355,11 @@ class LookupWrapper(ExpressionWrapper):
             rhs = transform(rhs)
         return wrap(rhs)
 
+    @property
+    def resolved_expression(self):
+        # Lookups don't implement resolve_expression
+        return self.expression
+
 
 @register(Exact)
 class ExactWrapper(LookupWrapper):

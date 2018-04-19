@@ -16,6 +16,14 @@ class FakeQuery:
         # workings of F().
         return Col(name, None)
 
+    @classmethod
+    def _add_q(cls, node, *args, **kwargs):
+        return node, None
+
+    @classmethod
+    def promote_joins(cls, *args, **kwargs):
+        pass
+
 
 class ExpressionWrapper:
     expression = None  # type: 'ExpressionType'
