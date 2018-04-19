@@ -1,18 +1,41 @@
 import operator
 import re
 import statistics
-from typing import AnyStr, Any, Callable, Iterable
+from typing import Any, AnyStr, Callable, Iterable
 
 import django
 from django.core.exceptions import FieldError
-from django.db.models import Value, F, Avg, Aggregate, Count, Max, Min, StdDev, Sum, Variance, Func, Lookup
-from django.db.models.expressions import CombinedExpression, Combinable, Col, DurationValue, \
-    Random, ExpressionWrapper as DjangoExpressionWrapper
-from django.db.models.functions import Cast, Coalesce, ConcatPair, Concat, Greatest, Least, Length, Lower, Now, \
-    Upper
-from django.db.models.lookups import Exact, IExact, GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, \
-    IntegerGreaterThanOrEqual, IntegerLessThan, In, Contains, IContains, StartsWith, IStartsWith, EndsWith, IEndsWith, Range, IsNull, Regex, \
-    IRegex
+from django.db.models import Aggregate, Avg, Count, F, Func, Lookup, Max, Min, StdDev, Sum, Value, Variance
+from django.db.models.expressions import (
+    Col,
+    Combinable,
+    CombinedExpression,
+    DurationValue,
+    ExpressionWrapper as DjangoExpressionWrapper,
+    Random,
+)
+from django.db.models.functions import Cast, Coalesce, Concat, ConcatPair, Greatest, Least, Length, Lower, Now, Upper
+from django.db.models.lookups import (
+    Contains,
+    EndsWith,
+    Exact,
+    GreaterThan,
+    GreaterThanOrEqual,
+    IContains,
+    IEndsWith,
+    IExact,
+    In,
+    IntegerGreaterThanOrEqual,
+    IntegerLessThan,
+    IRegex,
+    IsNull,
+    IStartsWith,
+    LessThan,
+    LessThanOrEqual,
+    Range,
+    Regex,
+    StartsWith,
+)
 from django.utils import timezone
 from django.utils.crypto import random
 from django.utils.functional import cached_property
@@ -20,7 +43,6 @@ from django.utils.functional import cached_property
 from django_properties.expression_wrapper.base import ExpressionWrapper, FakeQuery
 from django_properties.expression_wrapper.registry import register
 from django_properties.resolve import get_resolver
-
 
 if django.VERSION >= (2,):
     # Django 2.0 removes special Decimal lookups

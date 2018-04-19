@@ -1,6 +1,6 @@
-from django.db.models import Model, Q, FieldDoesNotExist, F, ExpressionWrapper, Value, Field
-from typing import Type, Union, Any, Tuple
+from typing import Any, Tuple, Type, Union
 
+from django.db.models import ExpressionWrapper, F, Field, FieldDoesNotExist, Model, Q, Value
 from django.db.models.constants import LOOKUP_SEP
 from django.db.models.lookups import Exact
 from django.db.models.options import Options

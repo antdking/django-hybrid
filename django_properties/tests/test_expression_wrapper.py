@@ -1,5 +1,5 @@
 import pytest
-from django.db.models import Value, F, CharField, ExpressionWrapper, Avg
+from django.db.models import Avg, CharField, ExpressionWrapper, F, Value
 
 from django_properties import expression_wrapper
 

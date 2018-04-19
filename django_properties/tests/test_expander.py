@@ -1,12 +1,11 @@
 import django
 import pytest
 from django.db import models
-from django.db.models import Lookup, F, ExpressionWrapper, Value, Q
+from django.db.models import ExpressionWrapper, F, Lookup, Q, Value
 from django.db.models.functions import Lower
 from django.db.models.lookups import Exact, GreaterThan
 
 from django_properties.expander import expand_query
-
 
 models.CharField.register_lookup(Lower)
 

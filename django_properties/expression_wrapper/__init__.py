@@ -1,6 +1,5 @@
-from .registry import registry
-
 from . import wrappers  # noqa
+from .registry import registry
 
 
 def wrap(expression):
