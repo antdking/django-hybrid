@@ -5,7 +5,8 @@ from typing import Any, AnyStr, Callable, Iterable
 
 import django
 from django.core.exceptions import FieldError
-from django.db.models import Aggregate, Avg, Count, F, Func, Lookup, Max, Min, StdDev, Sum, Value, Variance, Q, Model
+from django.db.models import Aggregate, Avg, Count, F, Func, Lookup, Max, Min, StdDev, Sum, Value, Variance, Q, Model, \
+    When
 from django.db.models.expressions import (
     Col,
     Combinable,
@@ -13,7 +14,7 @@ from django.db.models.expressions import (
     DurationValue,
     ExpressionWrapper as DjangoExpressionWrapper,
     Random,
-)
+    Case)
 from django.db.models.functions import Cast, Coalesce, Concat, ConcatPair, Greatest, Least, Length, Lower, Now, Upper
 from django.db.models.lookups import (
     Contains,
@@ -489,4 +490,41 @@ class QWrapper(ExpressionWrapper):
 
     @property
     def resolved_expression(self):
+        # Q doesn't implement resolve_expression(), so just return itself.
         return self.expression
+
+
+class ConditionNotMet(Exception):
+    pass
+
+
+@register(Case)
+class CaseWrapper(ExpressionWrapper, OutputFieldMixin):
+    expression = None  # type: Case
+
+    def as_python(self, obj: Any):
+        from . import wrap
+        statement = self.resolved_expression  # type: Case
+        for case in statement.cases:  # type: When
+            wrapped_case = wrap(case)
+            try:
+                value = wrapped_case.as_python(obj)
+                break
+            except ConditionNotMet:
+                pass
+        else:
+            value = wrap(statement.default).as_python(obj)
+        return self.to_value(value)
+
+
+@register(When)
+class WhenWrapper(ExpressionWrapper):
+    expression = None  # type: When
+
+    def as_python(self, obj: Any):
+        from . import wrap
+        statement = self.resolved_expression  # type: When
+        wrapped_condition = wrap(statement.condition)
+        if wrapped_condition.as_python(obj):
+            return wrap(statement.result).as_python(obj)
+        raise ConditionNotMet
