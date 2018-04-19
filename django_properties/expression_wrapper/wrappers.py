@@ -1,13 +1,18 @@
 import operator
+import re
 import statistics
 from typing import AnyStr, Any, Callable, Iterable
 
 from django.core.exceptions import FieldError
-from django.db.models import Value, F, Avg, Aggregate, Count, Max, Min, StdDev, Sum, Variance, Func
+from django.db.models import Value, F, Avg, Aggregate, Count, Max, Min, StdDev, Sum, Variance, Func, Lookup
 from django.db.models.expressions import CombinedExpression, Combinable, Col, DurationValue, \
     Random, ExpressionWrapper as DjangoExpressionWrapper
 from django.db.models.functions import Cast, Coalesce, ConcatPair, Concat, Greatest, Least, Length, Lower, Now, \
     Upper
+from django.db.models.lookups import Exact, IExact, GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, \
+    IntegerGreaterThanOrEqual, IntegerLessThan, DecimalGreaterThan, DecimalGreaterThanOrEqual, DecimalLessThan, \
+    DecimalLessThanOrEqual, In, Contains, IContains, StartsWith, IStartsWith, EndsWith, IEndsWith, Range, IsNull, Regex, \
+    IRegex
 from django.utils import timezone
 from django.utils.crypto import random
 from django.utils.functional import cached_property
@@ -297,4 +302,143 @@ else:
             return value
 
 
+class LookupWrapper(ExpressionWrapper):
+    expression = None  # type: Lookup
+    op = None  # type: Callable[[Any, Any] bool]
 
+    def as_python(self, obj: Any) -> bool:
+        from . import wrap
+        lhs_wrapped = wrap(self.resolved_expression.lhs)
+        rhs_wrapped = self.get_wrapped_rhs()
+        lhs_value = lhs_wrapped.as_python(obj)
+        rhs_value = rhs_wrapped.as_python(obj)
+        return self.__class__.op(lhs_value, rhs_value)
+
+    def get_wrapped_rhs(self):
+        from . import wrap
+        rhs = self.resolved_expression.rhs
+        for transform in self.resolved_expression.bilateral_transforms:
+            rhs = transform(rhs)
+        return wrap(rhs)
+
+
+@register(Exact)
+class ExactWrapper(LookupWrapper):
+    op = operator.eq
+
+
+@register(IExact)
+class IExactWrapper(LookupWrapper):
+    @staticmethod
+    def op(lhs, rhs):
+        if lhs and rhs:
+            return lhs.lower() == rhs.lower()
+        return lhs == rhs
+
+
+# TODO: python doesn't like comparing different types. investigate.
+
+@register(GreaterThan)
+@register(DecimalGreaterThan)
+class GreaterThanWrapper(LookupWrapper):
+    op = operator.gt
+
+
+@register(GreaterThanOrEqual)
+@register(IntegerGreaterThanOrEqual)
+@register(DecimalGreaterThanOrEqual)
+class GreaterThanOrEqualWrapper(LookupWrapper):
+    op = operator.ge
+
+
+@register(LessThan)
+@register(IntegerLessThan)
+@register(DecimalLessThan)
+class LessThanWrapper(LookupWrapper):
+    op = operator.lt
+
+
+@register(LessThanOrEqual)
+@register(DecimalLessThanOrEqual)
+class LessThanOrEqualWrapper(LookupWrapper):
+    op = operator.le
+
+
+@register(In)
+class InWrapper(LookupWrapper):
+    @staticmethod
+    def op(lhs, rhs):
+        # TODO: support querysets?
+        return lhs in rhs
+
+
+@register(Contains)
+class ContainsWrapper(LookupWrapper):
+    op = operator.contains
+
+
+@register(IContains)
+class IContainsWrapper(LookupWrapper):
+    @staticmethod
+    def op(lhs, rhs):
+        if lhs and rhs:
+            return rhs.lower() in lhs.lower()
+        return rhs in lhs
+
+
+@register(StartsWith)
+class StartsWithWrapper(LookupWrapper):
+    op = str.startswith
+
+
+@register(IStartsWith)
+class IStartsWithWrapper(LookupWrapper):
+    @staticmethod
+    def op(lhs, rhs):
+        if lhs and rhs:
+            return lhs.lower().startswith(rhs.lower())
+        # unsure on this..
+        return lhs.startswith(rhs)
+
+
+@register(EndsWith)
+class EndsWithWrapper(LookupWrapper):
+    op = str.endswith
+
+
+@register(IEndsWith)
+class IEndsWithWrapper(LookupWrapper):
+    @staticmethod
+    def op(lhs, rhs):
+        return lhs.lower().endswith(rhs.lower())
+
+
+@register(Range)
+class RangeWrapper(LookupWrapper):
+    @staticmethod
+    def op(lhs, rhs):
+        return rhs[0] >= lhs <= rhs[1]
+
+
+@register(IsNull)
+class IsNullWrapper(LookupWrapper):
+    @staticmethod
+    def op(lhs, wants_null):
+        if wants_null:
+            return lhs is None
+        return lhs is not None
+
+
+@register(Regex)
+class RegexWrapper(LookupWrapper):
+    re_flags = 0
+
+    @classmethod
+    def op(cls, lhs, rhs):
+        re_rhs = re.compile(rhs, flags=cls.re_flags)
+        return bool(re_rhs.search(lhs))
+
+
+@register(IRegex)
+class IRegexWrapper(RegexWrapper):
+    re_flags = re.IGNORECASE
