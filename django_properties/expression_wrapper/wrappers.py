@@ -17,6 +17,36 @@ from django_properties.expression_wrapper.registry import register
 from django_properties.resolve import get_resolver
 
 
+"""
+There are some main types of expressions in Django:
+  - Expressions
+    This is the base. It acts as a template for Values and Refs
+  - Func
+    This can be any function call. It defines how many arguments there are, and
+    what function is to be called.
+    - Aggregate
+      This is a subclass of Func. It takes an arbitrary amount of arguments, however
+      there is nothing really special about it.
+    - Transform
+      This is a subclass of Func. They take only one argument, and are commonly used
+      in queries.
+  - Lookup
+    These are not technically expressions.
+    They take 2 expressions, and should return True or False.
+    The first expression should point at a field, the latter can be anything.
+  - References
+    These point at fields. They're not technically Expressions, but they behave
+    the same.
+  - Queries
+    A query (or a `Q` object) is actually just syntactical sugar. It wraps a field
+    reference, transforms, and a lookup.
+    It is used in filters, as well as control flows.
+  - Control Flows
+    Django uses `Case` and `When` to supply control flows. this is essentially chained
+    If statements.
+"""
+
+
 class OutputFieldMixin:
     def to_value(self, value):
         try:
@@ -129,17 +159,19 @@ class FuncMixin:
             yield wrapped.as_python(obj)
 
 
-class AggregateWrapper(ExpressionWrapper, OutputFieldMixin, FuncMixin):
-    op = None  # type: Callable[Iterable[Any], Any]
-    expression = None  # type: Aggregate
+class FuncWrapper(ExpressionWrapper, OutputFieldMixin, FuncMixin):
+    op = None  # type: Callable
+    expression = None  # type: Func
 
     def as_python(self, obj: Any):
-        # we're going to assume there's no filter in this :/
-        # we're also going to assume they're only going to reference a relation
+        input_values = self.get_source_values(obj)
+        output_value = self.__class__.op(*input_values)
+        return self.to_value(output_value)
 
-        first_value = next(self.get_source_values(obj))
-        aggregated = self.__class__.op(first_value)
-        return self.to_value(aggregated)
+
+class AggregateWrapper(FuncWrapper):
+    op = None  # type: Callable[Iterable[Any], Any]
+    expression = None  # type: Aggregate
 
 
 @register(Avg)
@@ -177,84 +209,52 @@ class VarianceWrapper(AggregateWrapper):
     op = statistics.variance
 
 
-class FuncWrapper(ExpressionWrapper, OutputFieldMixin, FuncMixin):
-    expression = None  # type: Func
-
-
 @register(Cast)
 class CastWrapper(FuncWrapper):
-
-    def as_python(self, obj: Any):
-        first_value = next(self.get_source_values(obj))
-        return self.to_value(first_value)
+    @staticmethod
+    def op(value):
+        return value
 
 
 @register(Coalesce)
 class CoalesceWrapper(FuncWrapper):
-
-    def as_python(self, obj: Any):
-        for value in self.get_source_values(obj):
-            if value is not None:
-                return self.to_value(value)
-
-
-@register(ConcatPair)
-class ConcatPairWrapper(FuncWrapper):
-
-    def as_python(self, obj: Any):
-        return self.to_value(
-            ''.join(
-                str(v)
-                for v in self.get_source_values(obj)
-            )
+    @staticmethod
+    def op(*values):
+        return next(
+            (value for value in values if value is not None),
+            None
         )
 
 
+@register(ConcatPair)
 @register(Concat)
-class ConcatWrapper(FuncWrapper):
-    def as_python(self, obj: Any):
-        # Concat uses ConcatPair internally.
-        first_value = next(self.get_source_values(obj))
-        return self.to_value(first_value)
+class ConcatPairWrapper(FuncWrapper):
+    @staticmethod
+    def op(*values):
+        return ''.join(str(v) for v in values)
 
 
 @register(Greatest)
 class GreatestWrapper(FuncWrapper):
-    def as_python(self, obj: Any):
-        return self.to_value(
-            max(self.get_source_values(obj))
-        )
+    op = max
 
 
 @register(Least)
 class LeastWrapper(FuncWrapper):
-    def as_python(self, obj: Any):
-        return self.to_value(
-            min(self.get_source_values(obj))
-        )
+    op = min
 
 
 @register(Length)
 class LengthWrapper(FuncWrapper):
-    def as_python(self, obj: Any):
-        return self.to_value(
-            len(next(self.get_source_values(obj)))
-        )
+    op = len
 
 
-@register(Lower)
-class LowerWrapper(FuncWrapper):
-    def as_python(self, obj: Any):
-        value = self.to_value(
-            next(self.get_source_values(obj))
-        )
-        if value:
-            return value.lower()
-        return value
+class TransformWrapper(FuncWrapper):
+    op = None  # type: Callable[Any, Any]
 
 
 @register(Now)
-class NowWrapper(FuncWrapper):
+class NowWrapper(ExpressionWrapper, OutputFieldMixin):
     def as_python(self, obj: Any):
         return self.to_value(self.consistent_now)
 
@@ -263,15 +263,23 @@ class NowWrapper(FuncWrapper):
         return timezone.now()
 
 
+@register(Lower)
+class LowerWrapper(TransformWrapper):
+    @staticmethod
+    def op(value):
+        if value:
+            return value.lower()
+        return value
+
+
 @register(Upper)
-class UpperWrapper(FuncWrapper):
-    def as_python(self, obj: Any):
-        value = self.to_value(
-            next(self.get_source_values(obj))
-        )
+class UpperWrapper(TransformWrapper):
+    @staticmethod
+    def op(value):
         if value:
             return value.upper()
         return value
+
 
 try:
     from django.db.models.functions import StrIndex
@@ -280,10 +288,13 @@ except ImportError:
 else:
     @register(StrIndex)
     class StrIndexWrapper(FuncWrapper):
-        def as_python(self, obj: Any):
-            string, lookup = self.get_source_values(obj)
+        @staticmethod
+        def op(string, lookup):
             try:
                 value = string.index(lookup)
             except ValueError:
                 value = 0
-            return self.to_value(value)
+            return value
+
+
+
