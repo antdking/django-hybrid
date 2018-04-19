@@ -5,7 +5,7 @@ from typing import Any, AnyStr, Callable, Iterable
 
 import django
 from django.core.exceptions import FieldError
-from django.db.models import Aggregate, Avg, Count, F, Func, Lookup, Max, Min, StdDev, Sum, Value, Variance
+from django.db.models import Aggregate, Avg, Count, F, Func, Lookup, Max, Min, StdDev, Sum, Value, Variance, Q, Model
 from django.db.models.expressions import (
     Col,
     Combinable,
@@ -40,6 +40,7 @@ from django.utils import timezone
 from django.utils.crypto import random
 from django.utils.functional import cached_property
 
+from django_properties.expander import expand_query
 from django_properties.expression_wrapper.base import ExpressionWrapper, FakeQuery
 from django_properties.expression_wrapper.registry import register
 from django_properties.resolve import get_resolver
@@ -474,3 +475,18 @@ class RegexWrapper(LookupWrapper):
 @register(IRegex)
 class IRegexWrapper(RegexWrapper):
     re_flags = re.IGNORECASE
+
+
+@register(Q)
+class QWrapper(ExpressionWrapper):
+    expression = None  # type: Q
+
+    def as_python(self, obj: Model) -> bool:
+        from . import wrap
+        expanded_query = expand_query(obj._meta.model, self.expression)
+        wrapped = wrap(expanded_query)
+        return wrapped.as_python(obj)
+
+    @property
+    def resolved_expression(self):
+        return self.expression
