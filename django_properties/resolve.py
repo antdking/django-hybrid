@@ -24,10 +24,10 @@ class AttributeResolver(IResolver):
         'doc',
     )
 
-    def __init__(self, doc: Any):
+    def __init__(self, doc: Any) -> None:
         self.doc = doc
 
-    def resolve(self, path: str, default=_notset) -> Any:
+    def resolve(self, path: str, default: Any = _notset) -> Any:
         parts = path.split(LOOKUP_SEP)
         attribute_accessor = attrgetter('.'.join(parts))
         return attribute_accessor(self.doc)
@@ -38,10 +38,10 @@ class DictResolver(IResolver):
         'doc',
     )
 
-    def __init__(self, doc: Mapping[str, Any]):
+    def __init__(self, doc: Mapping[str, Any]) -> None:
         self.doc = doc
 
-    def resolve(self, path: str, default=_notset) -> Any:
+    def resolve(self, path: str, default: Any = _notset) -> Any:
         parts = path.split(LOOKUP_SEP)
         item_accessor = nested_itemgetter('.'.join(parts))
         return item_accessor(self.doc)
@@ -51,7 +51,7 @@ class DjangoResolver(AttributeResolver):
     pass
 
 
-def get_resolver(doc):
+def get_resolver(doc: Any) -> IResolver:
     if isinstance(doc, Model):
         return DjangoResolver(doc)
     elif isinstance(doc, Mapping):

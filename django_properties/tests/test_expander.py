@@ -16,7 +16,7 @@ skip_if_no_expression_comparison = pytest.mark.skipif(
 )
 
 
-class FakeModel(models.Model):
+class FakeModel(models.Model):  # type: ignore
     char_field = models.CharField(max_length=150, default="")
     int_field = models.IntegerField(default=0)
     float_field = models.FloatField(default=0.)
@@ -32,8 +32,8 @@ def lookup_eq_lookup(lookup1: Lookup, lookup2: Lookup) -> bool:
     )
 
 
-@skip_if_no_expression_comparison
-def test_lookup_comparison():
+@skip_if_no_expression_comparison  # type: ignore
+def test_lookup_comparison() -> None:
     q1 = Exact(Lower(
         ExpressionWrapper(F('char_field'), output_field=models.CharField())
     ), Value(''))
@@ -53,9 +53,9 @@ def test_lookup_comparison():
     assert not lookup_eq_lookup(q1, q4)
 
 
-@skip_if_no_expression_comparison
-@pytest.mark.django_db(transaction=True)
-def test_char_expression():
+@skip_if_no_expression_comparison  # type: ignore
+@pytest.mark.django_db(transaction=True)  # type: ignore
+def test_char_expression() -> None:
     expected = Exact(Lower(
         ExpressionWrapper(F('char_field'), output_field=models.CharField())
     ), Value(''))

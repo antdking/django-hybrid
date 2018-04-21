@@ -1,12 +1,18 @@
-from typing import Any, Tuple, Type, Union
+from typing import Any, Tuple, Type, Union, TypeVar
 
-from django.db.models import ExpressionWrapper, F, Field, FieldDoesNotExist, Model, Q, Value
+from django.db.models import ExpressionWrapper, F, Field, FieldDoesNotExist, Model, Q, Value, Expression
 from django.db.models.constants import LOOKUP_SEP
-from django.db.models.lookups import Exact
+from django.db.models.lookups import Exact, Lookup
 from django.db.models.options import Options
 
 
-def expand_query(model: Type[Model], query: Q):
+Connector_T = Union['Or', 'And']
+Negator_T = TypeVar('Negator_T', bound='Not')
+LookupOrConnector_T = Union[Lookup, Connector_T]
+Expanded_T = Union[LookupOrConnector_T, Negator_T]
+
+
+def expand_query(model: Type[Model], query: Q) -> Expanded_T:
     """
     Expand query expressions into a more consumable form
 
@@ -21,6 +27,8 @@ def expand_query(model: Type[Model], query: Q):
     becomes:
     >>> YearGte(YearExtract(F('date_field')), 2017)
     """
+
+    # TODO: the expanders won't evaluate to anything valid yet
 
     first_child = query.children[0]
     if isinstance(first_child, Q):
@@ -42,7 +50,7 @@ def expand_query(model: Type[Model], query: Q):
     return expanded
 
 
-def expand_child(model: Type[Model], child: Tuple[str, Any]):
+def expand_child(model: Type[Model], child: Tuple[str, Any]) -> Lookup:
     arg, value = child
 
     if not isinstance(value, Value):
@@ -51,7 +59,7 @@ def expand_child(model: Type[Model], child: Tuple[str, Any]):
     parts = arg.split(LOOKUP_SEP)
     opts = model._meta  # type: Options
     inner_opts = opts
-    field = None
+    field = None  # type: Field
     pos = 0
 
     # we need to work out the full field path, which we will put in an F()
@@ -59,12 +67,12 @@ def expand_child(model: Type[Model], child: Tuple[str, Any]):
         if part == 'pk':
             part = inner_opts.pk.name
         try:
-            field = inner_opts.get_field(part)  # type: Field
+            field = inner_opts.get_field(part)
         except FieldDoesNotExist:
             break
         else:
             if field.is_relation:
-                inner_opts = field.model._meta  # type: Options
+                inner_opts = field.model._meta
 
     else:
         # we never broke out, which means everything resolved correctly.
@@ -113,24 +121,23 @@ def expand_child(model: Type[Model], child: Tuple[str, Any]):
     return lookup_class(expression, value)
 
 
-def get_connector(connector_name: Union[Q.AND, Q.OR]) -> Union[Type['And'], Type['Or']]:
-    return {
-        Q.AND: And,
-        Q.OR: Or,
-    }[connector_name]
+def get_connector(connector_name: Union[Q.AND, Q.OR]) -> Type[Connector_T]:
+    if connector_name == Q.AND:
+        return And
+    return Or
 
 
 # These are stubs!
 class And:
-    def __init__(self, lhs, rhs):
+    def __init__(self, lhs: LookupOrConnector_T, rhs: LookupOrConnector_T) -> None:
         self.lhs, self.rhs = lhs, rhs
 
 
 class Not:
-    def __init__(self, expression):
+    def __init__(self, expression: LookupOrConnector_T) -> None:
         self.expression = expression
 
 
 class Or:
-    def __init__(self, lhs, rhs):
+    def __init__(self, lhs: LookupOrConnector_T, rhs: LookupOrConnector_T) -> None:
         self.lhs, self.rhs = lhs, rhs
