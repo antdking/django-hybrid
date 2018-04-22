@@ -1,15 +1,14 @@
-from typing import Any, Tuple, Type, Union, TypeVar
+from typing import Any, Tuple, Type, Union
 
-from django.db.models import ExpressionWrapper, F, Field, FieldDoesNotExist, Model, Q, Value, Expression
+from django.db.models import ExpressionWrapper, F, Field, FieldDoesNotExist, Model, Q, Value
 from django.db.models.constants import LOOKUP_SEP
 from django.db.models.lookups import Exact, Lookup
 from django.db.models.options import Options
 
 
 Connector_T = Union['Or', 'And']
-Negator_T = TypeVar('Negator_T', bound='Not')
 LookupOrConnector_T = Union[Lookup, Connector_T]
-Expanded_T = Union[LookupOrConnector_T, Negator_T]
+Expanded_T = Union[LookupOrConnector_T, 'Not']
 
 
 def expand_query(model: Type[Model], query: Q) -> Expanded_T:

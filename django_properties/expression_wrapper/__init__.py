@@ -1,16 +1,12 @@
-from typing import TypeVar, Union, Type, Callable
+from typing import Union, Type, Callable
 
-from django.db.models import Expression, F, Lookup, Q
-
+from django_properties.expression_wrapper.types import Wrapable, Wrapper, TypeWrapperOrProxy
+from django_properties.types import SupportsPython
 from . import wrappers  # noqa
 from .registry import registry
 
 
-T_Expression = Union[Expression, F, Q, Lookup]
-T_Wrappers = Union[Type[wrappers.ExpressionWrapper], Callable[[T_Expression], wrappers.ExpressionWrapper]]
-
-
-def wrap(expression: T_Expression) -> wrappers.ExpressionWrapper:
+def wrap(expression: Wrapable) -> SupportsPython:
     """Wrap an expression so we can control how each one works within python
 
     Django essentially builds a chain of expressions, which is then used to build
@@ -25,7 +21,7 @@ def wrap(expression: T_Expression) -> wrappers.ExpressionWrapper:
     return wrapper(expression)
 
 
-def get_wrapper(expression: Union[T_Expression, Type[T_Expression]]) -> T_Wrappers:
+def get_wrapper(expression: Union[Wrapable, Type[Wrapable]]) -> TypeWrapperOrProxy:
     if not isinstance(expression, type):
         expression = type(expression)
     return registry.get(expression)

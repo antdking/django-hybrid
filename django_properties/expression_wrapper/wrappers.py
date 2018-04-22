@@ -3,7 +3,7 @@ import re
 import statistics
 from datetime import datetime, date
 from typing import Any, AnyStr, Callable, Iterable, Generator, TypeVar, Optional, Container, Union, Tuple, Dict, cast, \
-    overload
+    overload, Generic
 
 import django
 from django.core.exceptions import FieldError
@@ -38,7 +38,7 @@ from django.db.models.lookups import (
     Range,
     Regex,
     StartsWith,
-)
+    Transform)
 from django.utils import timezone
 from django.utils.crypto import random
 
@@ -46,6 +46,7 @@ from django_properties.expander import expand_query
 from django_properties.expression_wrapper.base import ExpressionWrapper, FakeQuery
 from django_properties.expression_wrapper.registry import register
 from django_properties.resolve import get_resolver
+from django_properties.types import SupportsPython, SupportsPythonComparison
 from django_properties.utils import cached_property
 
 """
@@ -94,8 +95,7 @@ class OutputFieldMixin:
 
 @register(Value)
 @register(DurationValue)
-class ValueWrapper(ExpressionWrapper, OutputFieldMixin):
-    expression = None  # type: Value
+class ValueWrapper(ExpressionWrapper[Union[Value, DurationValue]], OutputFieldMixin):
 
     def as_python(self, obj: Any) -> Any:
         value = self.resolved_expression.value
@@ -103,8 +103,7 @@ class ValueWrapper(ExpressionWrapper, OutputFieldMixin):
 
 
 @register(CombinedExpression)
-class CombinedExpressionWrapper(ExpressionWrapper, OutputFieldMixin):
-    expression = None  # type: CombinedExpression
+class CombinedExpressionWrapper(ExpressionWrapper[CombinedExpression], OutputFieldMixin):
 
     _connectors = {
         Combinable.ADD: operator.add,
@@ -136,9 +135,7 @@ class CombinedExpressionWrapper(ExpressionWrapper, OutputFieldMixin):
 
 
 @register(Col)
-class ColWrapper(ExpressionWrapper):
-
-    expression = None  # type: Col
+class ColWrapper(ExpressionWrapper[Col]):
 
     def as_python(self, obj: Any) -> Any:
         resolver = get_resolver(obj)
@@ -159,8 +156,7 @@ def f_resolver(expression: F) -> ColWrapper:
 
 
 @register(Random)
-class RandomWrapper(ExpressionWrapper, OutputFieldMixin):
-    expression = None  # type: Random
+class RandomWrapper(ExpressionWrapper[Random], OutputFieldMixin):
 
     def as_python(self, obj: Any) -> float:
         return cast(float, self.to_value(
@@ -173,8 +169,7 @@ class RandomWrapper(ExpressionWrapper, OutputFieldMixin):
 
 
 @register(DjangoExpressionWrapper)
-class ExpressionWrapperWrapper(ExpressionWrapper, OutputFieldMixin):
-    expression = None  # type: DjangoExpressionWrapper
+class ExpressionWrapperWrapper(ExpressionWrapper[DjangoExpressionWrapper], OutputFieldMixin):
 
     def as_python(self, obj: Any) -> Any:
         from . import wrap
@@ -183,9 +178,11 @@ class ExpressionWrapperWrapper(ExpressionWrapper, OutputFieldMixin):
         return self.to_value(value)
 
 
-class FuncWrapper(ExpressionWrapper, OutputFieldMixin):
+T_Func = TypeVar('T_Func', bound=Func)
+
+
+class FuncWrapper(ExpressionWrapper[Func], OutputFieldMixin, Generic[T_Func]):
     op = None  # type: Callable
-    expression = None  # type: Func
 
     def as_python(self, obj: Any) -> Any:
         input_values = self.get_source_values(obj)
@@ -199,43 +196,45 @@ class FuncWrapper(ExpressionWrapper, OutputFieldMixin):
             yield wrapped.as_python(obj)
 
 
-class AggregateWrapper(FuncWrapper):
+T_Aggregate = TypeVar('T_Aggregate', bound=Aggregate)
+
+
+class AggregateWrapper(FuncWrapper[Aggregate], Generic[T_Aggregate]):
     op = None  # type: Callable[[Iterable[Any]], Any]
-    expression = None  # type: Aggregate
 
 
 @register(Avg)
-class AvgWrapper(AggregateWrapper):
+class AvgWrapper(AggregateWrapper[Avg]):
     op = statistics.mean
 
 
 @register(Count)
-class CountWrapper(AggregateWrapper):
+class CountWrapper(AggregateWrapper[Count]):
     op = len
 
 
 @register(Max)
-class MaxWrapper(AggregateWrapper):
+class MaxWrapper(AggregateWrapper[Count]):
     op = max
 
 
 @register(Min)
-class MinWrapper(AggregateWrapper):
+class MinWrapper(AggregateWrapper[Min]):
     op = min
 
 
 @register(StdDev)
-class StdDevWrapper(AggregateWrapper):
+class StdDevWrapper(AggregateWrapper[StdDev]):
     op = statistics.stdev
 
 
 @register(Sum)
-class SumWrapper(AggregateWrapper):
+class SumWrapper(AggregateWrapper[Sum]):
     op = sum
 
 
 @register(Variance)
-class VarianceWrapper(AggregateWrapper):
+class VarianceWrapper(AggregateWrapper[Variance]):
     op = statistics.variance
 
 
@@ -243,7 +242,7 @@ Cast_T = TypeVar('Cast_T')
 
 
 @register(Cast)
-class CastWrapper(FuncWrapper):
+class CastWrapper(FuncWrapper[Cast]):
     @staticmethod
     def op(value: Cast_T) -> Cast_T:
         return value
@@ -253,7 +252,7 @@ Coalesce_T = TypeVar('Coalesce_T')
 
 
 @register(Coalesce)
-class CoalesceWrapper(FuncWrapper):
+class CoalesceWrapper(FuncWrapper[Coalesce]):
     @staticmethod
     def op(*values: Coalesce_T) -> Optional[Coalesce_T]:
         return next(
@@ -264,33 +263,36 @@ class CoalesceWrapper(FuncWrapper):
 
 @register(ConcatPair)
 @register(Concat)
-class ConcatPairWrapper(FuncWrapper):
+class ConcatPairWrapper(FuncWrapper[Union[Concat, ConcatPair]]):
     @staticmethod
     def op(*values: str) -> str:
         return ''.join(str(v) for v in values)
 
 
 @register(Greatest)
-class GreatestWrapper(FuncWrapper):
+class GreatestWrapper(FuncWrapper[Greatest]):
     op = max
 
 
 @register(Least)
-class LeastWrapper(FuncWrapper):
+class LeastWrapper(FuncWrapper[Least]):
     op = min
 
 
 @register(Length)
-class LengthWrapper(FuncWrapper):
+class LengthWrapper(FuncWrapper[Length]):
     op = len
 
 
-class TransformWrapper(FuncWrapper):
+T_Transform = TypeVar('T_Transform', bound=Transform)
+
+
+class TransformWrapper(FuncWrapper[Transform], Generic[T_Transform]):
     op = None  # type: Callable[[Any], Any]
 
 
 @register(Now)
-class NowWrapper(ExpressionWrapper, OutputFieldMixin):
+class NowWrapper(ExpressionWrapper[Now], OutputFieldMixin):
     def as_python(self, obj: Any) -> datetime:
         return cast(datetime, self.to_value(self.consistent_now))
 
@@ -300,18 +302,18 @@ class NowWrapper(ExpressionWrapper, OutputFieldMixin):
 
 
 @register(Lower)
-class LowerWrapper(TransformWrapper):
+class LowerWrapper(TransformWrapper[Lower]):
     @staticmethod
-    def op(value: str) -> str:
+    def op(value: AnyStr) -> AnyStr:
         if value:
             return value.lower()
         return value
 
 
 @register(Upper)
-class UpperWrapper(TransformWrapper):
+class UpperWrapper(TransformWrapper[Upper]):
     @staticmethod
-    def op(value: str) -> str:
+    def op(value: AnyStr) -> AnyStr:
         if value:
             return value.upper()
         return value
@@ -323,7 +325,7 @@ except ImportError:
     pass
 else:
     @register(StrIndex)
-    class StrIndexWrapper(FuncWrapper):
+    class StrIndexWrapper(FuncWrapper[StrIndex]):
         @staticmethod
         def op(string: AnyStr, lookup: AnyStr) -> int:
             try:
@@ -333,8 +335,10 @@ else:
             return value
 
 
-class LookupWrapper(ExpressionWrapper):
-    expression = None  # type: Lookup
+T_Lookup = TypeVar('T_Lookup', bound=Lookup)
+
+
+class LookupWrapper(ExpressionWrapper[Lookup], Generic[T_Lookup]):
     op = None  # type: Callable[[Any, Any], bool]
 
     def as_python(self, obj: Any) -> bool:
@@ -345,26 +349,21 @@ class LookupWrapper(ExpressionWrapper):
         rhs_value = rhs_wrapped.as_python(obj)
         return type(self).op(lhs_value, rhs_value)
 
-    def get_wrapped_rhs(self) -> ExpressionWrapper:
+    def get_wrapped_rhs(self) -> SupportsPython:
         from . import wrap
         rhs = self.resolved_expression.rhs
         for transform in self.resolved_expression.bilateral_transforms:
             rhs = transform(rhs)
         return wrap(rhs)
 
-    @cached_property
-    def resolved_expression(self) -> Lookup:
-        # Lookups don't implement resolve_expression
-        return self.expression
-
 
 @register(Exact)
-class ExactWrapper(LookupWrapper):
+class ExactWrapper(LookupWrapper[Exact]):
     op = operator.eq
 
 
 @register(IExact)
-class IExactWrapper(LookupWrapper):
+class IExactWrapper(LookupWrapper[IExact]):
     @staticmethod
     def op(lhs: AnyStr, rhs: AnyStr) -> bool:
         if lhs and rhs:
@@ -375,29 +374,29 @@ class IExactWrapper(LookupWrapper):
 # TODO: python doesn't like comparing different types. investigate.
 
 @register(GreaterThan)
-class GreaterThanWrapper(LookupWrapper):
+class GreaterThanWrapper(LookupWrapper[GreaterThan], Generic[T_Lookup]):
     op = operator.gt
 
 
 @register(GreaterThanOrEqual)
 @register(IntegerGreaterThanOrEqual)
-class GreaterThanOrEqualWrapper(LookupWrapper):
+class GreaterThanOrEqualWrapper(LookupWrapper[Union[GreaterThanOrEqual, IntegerGreaterThanOrEqual]], Generic[T_Lookup]):
     op = operator.ge
 
 
 @register(LessThan)
 @register(IntegerLessThan)
-class LessThanWrapper(LookupWrapper):
+class LessThanWrapper(LookupWrapper[Union[LessThan, IntegerLessThan]], Generic[T_Lookup]):
     op = operator.lt
 
 
 @register(LessThanOrEqual)
-class LessThanOrEqualWrapper(LookupWrapper):
+class LessThanOrEqualWrapper(LookupWrapper[LessThanOrEqual], Generic[T_Lookup]):
     op = operator.le
 
 
 @register(In)
-class InWrapper(LookupWrapper):
+class InWrapper(LookupWrapper[In]):
     @staticmethod
     def op(lhs: Any, rhs: Container) -> bool:
         # TODO: support querysets?
@@ -405,12 +404,12 @@ class InWrapper(LookupWrapper):
 
 
 @register(Contains)
-class ContainsWrapper(LookupWrapper):
+class ContainsWrapper(LookupWrapper[Contains]):
     op = operator.contains
 
 
 @register(IContains)
-class IContainsWrapper(LookupWrapper):
+class IContainsWrapper(LookupWrapper[IContains]):
     @staticmethod
     def op(lhs: AnyStr, rhs: AnyStr) -> bool:
         if lhs and rhs:
@@ -419,12 +418,12 @@ class IContainsWrapper(LookupWrapper):
 
 
 @register(StartsWith)
-class StartsWithWrapper(LookupWrapper):
+class StartsWithWrapper(LookupWrapper[StartsWith]):
     op = str.startswith
 
 
 @register(IStartsWith)
-class IStartsWithWrapper(LookupWrapper):
+class IStartsWithWrapper(LookupWrapper[IStartsWith]):
     @staticmethod
     def op(lhs: AnyStr, rhs: AnyStr) -> bool:
         if lhs and rhs:
@@ -434,14 +433,14 @@ class IStartsWithWrapper(LookupWrapper):
 
 
 @register(EndsWith)
-class EndsWithWrapper(LookupWrapper):
+class EndsWithWrapper(LookupWrapper[EndsWith]):
     op = str.endswith
 
 
 @register(IEndsWith)
-class IEndsWithWrapper(LookupWrapper):
+class IEndsWithWrapper(LookupWrapper[IEndsWith]):
     @staticmethod
-    def op(lhs: str, rhs: str) -> bool:
+    def op(lhs: AnyStr, rhs: AnyStr) -> bool:
         return lhs.lower().endswith(rhs.lower())
 
 
@@ -449,7 +448,7 @@ Rangeable_T = TypeVar('Rangeable_T', int, date)
 
 
 @register(Range)
-class RangeWrapper(LookupWrapper):
+class RangeWrapper(LookupWrapper[Range]):
 
     @staticmethod
     def op(lhs: Rangeable_T, rhs: Tuple[Rangeable_T, Rangeable_T]) -> bool:
@@ -457,7 +456,7 @@ class RangeWrapper(LookupWrapper):
 
 
 @register(IsNull)
-class IsNullWrapper(LookupWrapper):
+class IsNullWrapper(LookupWrapper[IsNull]):
     @staticmethod
     def op(lhs: Any, wants_null: bool) -> bool:
         if wants_null:
@@ -466,7 +465,7 @@ class IsNullWrapper(LookupWrapper):
 
 
 @register(Regex)
-class RegexWrapper(LookupWrapper):
+class RegexWrapper(LookupWrapper[Regex], Generic[T_Lookup]):
     re_flags = 0
 
     @classmethod
@@ -476,24 +475,18 @@ class RegexWrapper(LookupWrapper):
 
 
 @register(IRegex)
-class IRegexWrapper(RegexWrapper):
+class IRegexWrapper(RegexWrapper[IRegex]):
     re_flags = re.IGNORECASE
 
 
 @register(Q)
-class QWrapper(ExpressionWrapper):
-    expression = None  # type: Q
+class QWrapper(ExpressionWrapper[Q]):
 
     def as_python(self, obj: Model) -> bool:
         from . import wrap
         expanded_query = expand_query(obj._meta.model, self.expression)
         wrapped = wrap(expanded_query)
-        return cast(bool, wrapped.as_python(obj))
-
-    @cached_property
-    def resolved_expression(self) -> Q:
-        # Q doesn't implement resolve_expression(), so just return itself.
-        return self.expression
+        return cast(SupportsPythonComparison, wrapped).as_python(obj)
 
 
 class ConditionNotMet(Exception):
@@ -501,12 +494,11 @@ class ConditionNotMet(Exception):
 
 
 @register(Case)
-class CaseWrapper(ExpressionWrapper, OutputFieldMixin):
-    expression = None  # type: Case
+class CaseWrapper(ExpressionWrapper[Case], OutputFieldMixin):
 
     def as_python(self, obj: Any) -> Any:
         from . import wrap
-        statement = self.resolved_expression  # type: Case
+        statement = self.resolved_expression
         for case in statement.cases:  # type: When
             wrapped_case = wrap(case)
             try:
@@ -520,12 +512,11 @@ class CaseWrapper(ExpressionWrapper, OutputFieldMixin):
 
 
 @register(When)
-class WhenWrapper(ExpressionWrapper):
-    expression = None  # type: When
+class WhenWrapper(ExpressionWrapper[When]):
 
     def as_python(self, obj: Any) -> Any:
         from . import wrap
-        statement = self.resolved_expression  # type: When
+        statement = self.resolved_expression
         wrapped_condition = wrap(statement.condition)
         if wrapped_condition.as_python(obj):
             return wrap(statement.result).as_python(obj)
@@ -535,7 +526,7 @@ class WhenWrapper(ExpressionWrapper):
 if django.VERSION < (2,):
     from django.db.models.lookups import DecimalGreaterThan, DecimalGreaterThanOrEqual, DecimalLessThan, DecimalLessThanOrEqual
 
-    register(DecimalGreaterThan, GreaterThanWrapper)
-    register(DecimalGreaterThanOrEqual, GreaterThanOrEqualWrapper)
-    register(DecimalLessThan, LessThanWrapper)
-    register(DecimalLessThanOrEqual, LessThanOrEqualWrapper)
+    register(DecimalGreaterThan, GreaterThanWrapper[DecimalGreaterThan])
+    register(DecimalGreaterThanOrEqual, GreaterThanOrEqualWrapper[DecimalGreaterThanOrEqual])
+    register(DecimalLessThan, LessThanWrapper[DecimalLessThan])
+    register(DecimalLessThanOrEqual, LessThanOrEqualWrapper[DecimalGreaterThanOrEqual])
