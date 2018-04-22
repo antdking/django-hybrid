@@ -1,4 +1,4 @@
-from typing import Union, Type, Callable
+from typing import Union, Type
 
 from django_properties.expression_wrapper.types import Wrapable, Wrapper, TypeWrapperOrProxy
 from django_properties.types import SupportsPython
@@ -17,6 +17,9 @@ def wrap(expression: Wrapable) -> SupportsPython:
     :param expression:
     :return:
     """
+    if isinstance(expression, SupportsPython):
+        return expression
+
     wrapper = get_wrapper(expression)
     return wrapper(expression)
 

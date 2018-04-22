@@ -1,4 +1,5 @@
-from typing import Any, Tuple, Type, Union
+import operator
+from typing import Any, Tuple, Type, Union, Callable
 
 from django.db.models import ExpressionWrapper, F, Field, FieldDoesNotExist, Model, Q, Value
 from django.db.models.constants import LOOKUP_SEP
@@ -126,17 +127,31 @@ def get_connector(connector_name: Union[Q.AND, Q.OR]) -> Type[Connector_T]:
     return Or
 
 
-# These are stubs!
-class And:
+class Combineable:
+    combiner = None  # type: Callable[[bool, bool], bool]
+
     def __init__(self, lhs: LookupOrConnector_T, rhs: LookupOrConnector_T) -> None:
         self.lhs, self.rhs = lhs, rhs
+
+    def as_python(self, obj: Any) -> bool:
+        from .expression_wrapper import wrap
+        wrapped_lhs = wrap(self.lhs)
+        wrapped_rhs = wrap(self.rhs)
+        return type(self).combiner(wrapped_lhs.as_python(obj), wrapped_rhs.as_python(obj))
+
+
+class And(Combineable):
+    combiner = operator.and_
+
+
+class Or(Combineable):
+    combiner = operator.or_
 
 
 class Not:
     def __init__(self, expression: LookupOrConnector_T) -> None:
         self.expression = expression
 
-
-class Or:
-    def __init__(self, lhs: LookupOrConnector_T, rhs: LookupOrConnector_T) -> None:
-        self.lhs, self.rhs = lhs, rhs
+    def as_python(self, obj: Any) -> bool:
+        from .expression_wrapper import wrap
+        return not wrap(self.expression).as_python(obj)

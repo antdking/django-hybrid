@@ -1,4 +1,4 @@
-from typing import Union, TYPE_CHECKING, ClassVar, Callable, Type
+from typing import Union, TYPE_CHECKING, Callable, Type
 
 from typing_extensions import Protocol
 
@@ -8,12 +8,10 @@ if TYPE_CHECKING:
     from django.db.models import Expression, F, Q, Lookup
 
 
-Wrapable = Union['Expression', 'F', 'Q', 'Lookup']
+Wrapable = Union['Expression', 'F', 'Q', 'Lookup', SupportsPython]
 
 
 class Wrapper(SupportsPython, Protocol):
-    resolve_expression = None  # type: ClassVar[Wrapable]
-
     def __init__(self, expression: Wrapable) -> None: ...
 
 
