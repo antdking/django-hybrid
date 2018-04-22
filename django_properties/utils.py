@@ -1,4 +1,4 @@
-from typing import Any, Callable, Mapping, Optional, TypeVar, Type, Union, overload, Generic
+from typing import Any, Callable, Generic, Mapping, Optional, Type, TypeVar, Union, overload
 
 from django.utils.functional import cached_property as django_cached_property
 

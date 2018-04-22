@@ -1,9 +1,8 @@
-from typing import TYPE_CHECKING, Any, TypeVar, Tuple, Generic, cast
+from typing import TYPE_CHECKING, Any, Generic, Tuple, TypeVar, cast
 
 from django_properties.utils import cached_property
 
-from .types import Wrapper, Wrapable
-
+from .types import Wrapable, Wrapper
 
 if TYPE_CHECKING:
     from django.db.models import Q

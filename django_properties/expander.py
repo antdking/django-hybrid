@@ -1,5 +1,5 @@
 import operator
-from typing import Any, Tuple, Type, Union, Callable
+from typing import Any, Callable, Tuple, Type, Union
 
 from django.db.models import ExpressionWrapper, F, Field, FieldDoesNotExist, Model, Q, Value
 from django.db.models.constants import LOOKUP_SEP

@@ -1,21 +1,52 @@
 import operator
 import re
 import statistics
-from datetime import datetime, date
-from typing import Any, AnyStr, Callable, Iterable, Generator, TypeVar, Optional, Container, Union, Tuple, Dict, cast, Generic
+from datetime import date, datetime
+from typing import (
+    Any,
+    AnyStr,
+    Callable,
+    Container,
+    Dict,
+    Generator,
+    Generic,
+    Iterable,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+    cast,
+)
 
 import django
 from django.core.exceptions import FieldError
-from django.db.models import Aggregate, Avg, Count, F, Func, Lookup, Max, Min, StdDev, Sum, Value, Variance, Q, Model, \
-    When, Field
+from django.db.models import (
+    Aggregate,
+    Avg,
+    Count,
+    F,
+    Field,
+    Func,
+    Lookup,
+    Max,
+    Min,
+    Model,
+    Q,
+    StdDev,
+    Sum,
+    Value,
+    Variance,
+    When,
+)
 from django.db.models.expressions import (
+    Case,
     Col,
     Combinable,
     CombinedExpression,
     DurationValue,
     ExpressionWrapper as DjangoExpressionWrapper,
     Random,
-    Case)
+)
 from django.db.models.functions import Cast, Coalesce, Concat, ConcatPair, Greatest, Least, Length, Lower, Now, Upper
 from django.db.models.lookups import (
     Contains,
@@ -37,7 +68,8 @@ from django.db.models.lookups import (
     Range,
     Regex,
     StartsWith,
-    Transform)
+    Transform,
+)
 from django.utils import timezone
 from django.utils.crypto import random
 

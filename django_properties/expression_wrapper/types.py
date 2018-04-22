@@ -1,4 +1,4 @@
-from typing import Union, TYPE_CHECKING, Callable, Type
+from typing import TYPE_CHECKING, Callable, Type, Union
 
 from typing_extensions import Protocol
 

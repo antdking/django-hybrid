@@ -1,7 +1,6 @@
-from typing import TypeVar, Type, Union, Callable, overload, Dict, Optional
+from typing import Callable, Dict, Optional, Type, TypeVar, Union, overload
 
-from .types import Wrapable, TypeWrapperOrProxy
-
+from .types import TypeWrapperOrProxy, Wrapable
 
 Registrable = Type[Wrapable]
 T_TypeWrapperOrProxy = TypeVar('T_TypeWrapperOrProxy', bound=TypeWrapperOrProxy)

@@ -1,9 +1,9 @@
-from typing import Union, Type
+from typing import Type, Union
 
 from django_properties.types import SupportsPython
 
 from .registry import registry
-from .types import Wrapable, TypeWrapperOrProxy
+from .types import TypeWrapperOrProxy, Wrapable
 
 
 def wrap(expression: Wrapable) -> SupportsPython:

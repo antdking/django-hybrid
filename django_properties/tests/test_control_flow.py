@@ -1,6 +1,6 @@
 import pytest
 from django.db import models
-from django.db.models import Q, Case, When, Value
+from django.db.models import Case, Q, Value, When
 
 from django_properties.expression_wrapper.wrap import wrap
 
@@ -33,4 +33,3 @@ def test_case():
     instance = ControlFlowModel(int_field=23)
 
     assert expected == wrapped.as_python(instance)
-
