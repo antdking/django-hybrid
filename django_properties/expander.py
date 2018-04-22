@@ -78,8 +78,6 @@ def expand_child(model: Type[Model], child: Tuple[str, Any]) -> Lookup:
         # we never broke out, which means everything resolved correctly.
         # bump pos by one so we get no remainder
         pos += 1
-        # we didn't break out, so we only have a field.
-        return Exact(ExpressionWrapper(F(arg), output_field=field), value)
 
     if field is None:
         raise Exception("Field not found: {}".format(parts))
@@ -108,7 +106,7 @@ def expand_child(model: Type[Model], child: Tuple[str, Any]) -> Lookup:
     lookup_name = remainder[-1]
     lookup_class = lookup_expression.get_lookup(lookup_name)
     if not lookup_class:
-        transformer = lookup_expression.get_transform(part)
+        transformer = lookup_expression.get_transform(lookup_name)
         if not transformer:
             raise Exception("invalid transform or field access: {}".format(lookup_name))
         lookup_expression = expression = transformer(expression)
