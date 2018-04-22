@@ -2,7 +2,7 @@ import pytest
 from django.db import models
 from django.db.models import Q, Case, When, Value
 
-from django_properties.expression_wrapper import wrap
+from django_properties.expression_wrapper.wrap import wrap
 
 
 class ControlFlowModel(models.Model):

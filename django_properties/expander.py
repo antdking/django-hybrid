@@ -6,6 +6,7 @@ from django.db.models.constants import LOOKUP_SEP
 from django.db.models.lookups import Exact, Lookup
 from django.db.models.options import Options
 
+from .expression_wrapper.wrap import wrap
 
 Connector_T = Union['Or', 'And']
 LookupOrConnector_T = Union[Lookup, Connector_T]
@@ -132,7 +133,6 @@ class Combineable:
         self.lhs, self.rhs = lhs, rhs
 
     def as_python(self, obj: Any) -> bool:
-        from .expression_wrapper import wrap
         wrapped_lhs = wrap(self.lhs)
         wrapped_rhs = wrap(self.rhs)
         return type(self).combiner(wrapped_lhs.as_python(obj), wrapped_rhs.as_python(obj))
@@ -151,5 +151,4 @@ class Not:
         self.expression = expression
 
     def as_python(self, obj: Any) -> bool:
-        from .expression_wrapper import wrap
         return not wrap(self.expression).as_python(obj)

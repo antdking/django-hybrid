@@ -1,6 +1,6 @@
 from typing import TypeVar, Type, Union, Callable, overload, Dict, Optional
 
-from django_properties.expression_wrapper import Wrapable, TypeWrapperOrProxy
+from .types import Wrapable, TypeWrapperOrProxy
 
 
 Registrable = Type[Wrapable]

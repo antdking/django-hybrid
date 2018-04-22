@@ -1,7 +1,9 @@
-from typing import TYPE_CHECKING, Any, Union, TypeVar, Tuple, Dict, Generic, cast
+from typing import TYPE_CHECKING, Any, TypeVar, Tuple, Generic, cast
 
-from django_properties.expression_wrapper.types import Wrapper, Wrapable
 from django_properties.utils import cached_property
+
+from .types import Wrapper, Wrapable
+
 
 if TYPE_CHECKING:
     from django.db.models import Q
@@ -10,6 +12,7 @@ if TYPE_CHECKING:
 
 T_Q = TypeVar('T_Q', bound='Q')
 T_Wrapable = TypeVar('T_Wrapable', bound=Wrapable)
+
 
 class FakeQuery:
     @classmethod

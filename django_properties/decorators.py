@@ -1,7 +1,8 @@
 from typing import Callable, TypeVar, Type, overload, Optional, Union, Any, cast
 
-from django_properties.expression_wrapper import wrap, Wrapable
-from django_properties.types import SupportsPython
+from .expression_wrapper.types import Wrapable
+from .expression_wrapper.wrap import wrap
+from .types import SupportsPython
 
 T = TypeVar('T')
 V_Class = TypeVar('V_Class', bound=Wrapable)

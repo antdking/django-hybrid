@@ -2,8 +2,7 @@ import operator
 import re
 import statistics
 from datetime import datetime, date
-from typing import Any, AnyStr, Callable, Iterable, Generator, TypeVar, Optional, Container, Union, Tuple, Dict, cast, \
-    overload, Generic
+from typing import Any, AnyStr, Callable, Iterable, Generator, TypeVar, Optional, Container, Union, Tuple, Dict, cast, Generic
 
 import django
 from django.core.exceptions import FieldError
@@ -43,11 +42,14 @@ from django.utils import timezone
 from django.utils.crypto import random
 
 from django_properties.expander import expand_query
-from django_properties.expression_wrapper.base import ExpressionWrapper, FakeQuery
-from django_properties.expression_wrapper.registry import register
 from django_properties.resolve import get_resolver
 from django_properties.types import SupportsPython, SupportsPythonComparison
 from django_properties.utils import cached_property
+
+from .base import ExpressionWrapper, FakeQuery
+from .registry import register
+from .wrap import wrap
+
 
 """
 There are some main types of expressions in Django:
@@ -118,7 +120,6 @@ class CombinedExpressionWrapper(ExpressionWrapper[CombinedExpression], OutputFie
     }  # type: Dict[str, Callable[[Any, Any], Any]]
 
     def as_python(self, obj: Any) -> Any:
-        from . import wrap
 
         lhs_wrapped = wrap(self.resolved_expression.lhs)
         rhs_wrapped = wrap(self.resolved_expression.rhs)
@@ -172,7 +173,6 @@ class RandomWrapper(ExpressionWrapper[Random], OutputFieldMixin):
 class ExpressionWrapperWrapper(ExpressionWrapper[DjangoExpressionWrapper], OutputFieldMixin):
 
     def as_python(self, obj: Any) -> Any:
-        from . import wrap
         wrapped = wrap(self.expression.expression)
         value = wrapped.as_python(obj)
         return self.to_value(value)
@@ -190,7 +190,6 @@ class FuncWrapper(ExpressionWrapper[Func], OutputFieldMixin, Generic[T_Func]):
         return self.to_value(output_value)
 
     def get_source_values(self, obj: Any) -> Generator[Any, None, None]:
-        from . import wrap
         for expression in self.resolved_expression.source_expressions:
             wrapped = wrap(expression)
             yield wrapped.as_python(obj)
@@ -342,7 +341,6 @@ class LookupWrapper(ExpressionWrapper[Lookup], Generic[T_Lookup]):
     op = None  # type: Callable[[Any, Any], bool]
 
     def as_python(self, obj: Any) -> bool:
-        from . import wrap
         lhs_wrapped = wrap(self.resolved_expression.lhs)
         rhs_wrapped = self.get_wrapped_rhs()
         lhs_value = lhs_wrapped.as_python(obj)
@@ -350,7 +348,6 @@ class LookupWrapper(ExpressionWrapper[Lookup], Generic[T_Lookup]):
         return type(self).op(lhs_value, rhs_value)
 
     def get_wrapped_rhs(self) -> SupportsPython:
-        from . import wrap
         rhs = self.resolved_expression.rhs
         for transform in self.resolved_expression.bilateral_transforms:
             rhs = transform(rhs)
@@ -483,7 +480,6 @@ class IRegexWrapper(RegexWrapper[IRegex]):
 class QWrapper(ExpressionWrapper[Q]):
 
     def as_python(self, obj: Model) -> bool:
-        from . import wrap
         expanded_query = expand_query(obj._meta.model, self.expression)
         wrapped = wrap(expanded_query)
         return cast(SupportsPythonComparison, wrapped).as_python(obj)
@@ -497,7 +493,6 @@ class ConditionNotMet(Exception):
 class CaseWrapper(ExpressionWrapper[Case], OutputFieldMixin):
 
     def as_python(self, obj: Any) -> Any:
-        from . import wrap
         statement = self.resolved_expression
         for case in statement.cases:  # type: When
             wrapped_case = wrap(case)
@@ -515,7 +510,6 @@ class CaseWrapper(ExpressionWrapper[Case], OutputFieldMixin):
 class WhenWrapper(ExpressionWrapper[When]):
 
     def as_python(self, obj: Any) -> Any:
-        from . import wrap
         statement = self.resolved_expression
         wrapped_condition = wrap(statement.condition)
         if wrapped_condition.as_python(obj):
