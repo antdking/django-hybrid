@@ -14,6 +14,9 @@ def test_interface_exposed():
     assert hasattr(registry.registry, 'get')
 
     assert registry.registry.register == registry.register
+    # TODO: I tried this with an `is` comparison, however it fails the assertion?
+    # is it to do with some magic in python? This also fails: d = D(); assert d.h is d.h
+    # assert registry.registry.register is registry.register
 
 
 def test_register_signature():
