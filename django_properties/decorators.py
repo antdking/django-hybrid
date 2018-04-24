@@ -1,5 +1,6 @@
 from typing import Any, Callable, Optional, Type, TypeVar, Union, cast, overload
 
+from django.db.models import ExpressionWrapper, Expression
 from .expression_wrapper.types import Wrapable
 from .expression_wrapper.wrap import wrap
 from .types import SupportsPython
@@ -50,15 +51,21 @@ class Hybrid:
 
     def class_method_behaviour(self, owner: Type[T]) -> V_Class:
         if self._cached_expression is None:
-            self._cached_expression = self.func(owner)
+            self._cached_expression = NamedExpression(self.func(owner), self.name)
         return cast(V_Class, self._cached_expression)
 
     def instance_method_behaviour(self, instance: T) -> Any:
         if self._cached_wrapped is None:
             self._cached_wrapped = wrap(
-                self.class_method_behaviour(type(instance))
+                self.func(type(instance))
             )
         return self._cached_wrapped.as_python(instance)
+
+
+class NamedExpression(ExpressionWrapper):  # type: ignore
+    def __init__(self, expression: Expression, default_alias: str) -> None:
+        super().__init__(expression, None)
+        self.default_alias = default_alias
 
 
 hybrid = Hybrid
