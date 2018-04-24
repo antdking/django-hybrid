@@ -180,11 +180,6 @@ class Not:
         self.expression = expression
 
     def as_python(self, obj: Any) -> bool:
-        if isinstance(self.expression, EmptyQuery):
-            # When an empty query is encountered, Django treats it as invisible.
-            # This causes a strange behaviour of ~Q() behaving the same as Q().
-            return True
-
         return not wrap(self.expression).as_python(obj)
 
 
