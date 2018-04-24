@@ -172,7 +172,13 @@ class ColWrapper(ExpressionWrapper[Col]):
 
     def as_python(self, obj: Any) -> Any:
         resolver = get_resolver(obj)
-        return resolver.resolve(self.resolved_expression.alias)
+        resolved = resolver.resolve(self.resolved_expression.alias)
+
+        # This behaviour might not be right, but everything I've seen suggests it..
+        # We need to turn a model instance into its PK value.
+        if isinstance(resolved, Model):
+            return resolved.pk
+        return resolved
 
 
 @register(F)
