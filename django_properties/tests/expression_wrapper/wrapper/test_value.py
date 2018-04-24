@@ -2,7 +2,7 @@ import datetime
 
 import pytest
 
-from django.db.models import Value, DateField, IntegerField
+from django.db.models import Value, DateField, IntegerField, CharField, ExpressionWrapper, NullBooleanField
 
 from .base import WrapperTestBase
 from .factory import WrapperStubFactory
@@ -15,40 +15,35 @@ class ValueTestBase(WrapperTestBase):
 
 
 class TestInt(ValueTestBase):
-    expression = Value(28)
+    expression = Value(28, output_field=IntegerField())
     python_value = 28
 
 
 class TestStr(ValueTestBase):
-    expression = Value("some string")
+    expression = Value("some string", output_field=CharField())
     python_value = "some string"
 
 
 class TestCombine(ValueTestBase):
-    expression = Value(28) + 2
+    expression = Value(28, output_field=IntegerField()) + 2
     python_value = 30
 
 
-class TestDuration(ValueTestBase):
-    expression = Value(datetime.date(2018, 1, 1)) + datetime.timedelta(days=1)
-    python_value = datetime.date(2018, 1, 2)
-
-    def test_expression_evaluates_to_expected(self):
-        pytest.xfail("CombinedExpression falls over due to output field detection")
-
-
 class TestDurationExplicit(ValueTestBase):
-    expression = Value(datetime.date(2018, 1, 1), output_field=DateField()) + datetime.timedelta(days=1)
+    expression = ExpressionWrapper(
+        Value(datetime.date(2018, 1, 1), output_field=DateField()) + datetime.timedelta(days=1),
+        output_field=DateField(),
+    )
     python_value = datetime.date(2018, 1, 2)
 
 
 class TestNull(ValueTestBase):
-    expression = Value(None)
+    expression = Value(None, output_field=NullBooleanField())
     python_value = None
 
 
 class TestMultipleCombines(ValueTestBase):
-    expression = (Value(20) + 10) + 20
+    expression = (Value(20, output_field=IntegerField()) + 10) + 20
     python_value = 50
 
 
