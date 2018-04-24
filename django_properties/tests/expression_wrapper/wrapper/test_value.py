@@ -2,16 +2,16 @@ import datetime
 
 import pytest
 
-from django.db.models import Value, Model, DateField, IntegerField
+from django.db.models import Value, DateField, IntegerField
+
 from .base import WrapperTestBase
-
-
-class StubModel(Model):
-    pass
+from .factory import WrapperStubFactory
+from .models import WrapperStubModel
 
 
 class ValueTestBase(WrapperTestBase):
-    model_class = StubModel
+    model_class = WrapperStubModel
+    factory = WrapperStubFactory
 
 
 class TestInt(ValueTestBase):

@@ -8,4 +8,5 @@ DATABASES = {
 
 INSTALLED_APPS = [
     'django_properties',
+    'django_properties.tests.expression_wrapper.wrapper',
 ]

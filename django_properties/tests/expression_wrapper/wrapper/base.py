@@ -1,5 +1,7 @@
-import pytest
+import factory
 from typing import ClassVar, Union, Mapping, Any, Type
+
+import pytest
 
 from django_properties.expression_wrapper.wrap import wrap
 
@@ -12,12 +14,14 @@ ExpressionType = Union[Expression, F, Q, Lookup]
 _UNSET = object()
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 class WrapperTestBase:
-    expression = None  # type: ClassVar[ExpressionType]
-    fixture = {}  # type: ClassVar[Mapping[str, Any]]
+    factory = None  # type: ClassVar[Type[factory.Factory]]
     model_class = None  # type: ClassVar[Type[Model]]
+    fixture = {}  # type: ClassVar[Mapping[str, Any]]
+
     python_value = _UNSET  # type: ClassVar[Any]
+    expression = None  # type: ClassVar[ExpressionType]
 
     def python_equivalent(self, obj: Model) -> Any:
         if self.python_value is _UNSET:
@@ -28,7 +32,9 @@ class WrapperTestBase:
         return self.expression
 
     def get_populated_model(self) -> Model:
-        return self.model_class(**self.fixture)
+        if not hasattr(self, '__model_instance'):
+            self.__model_instance = self.factory(**self.fixture)
+        return self.__model_instance
 
     def test_expression_evaluates_to_expected(self):
         expression = self.get_expression()
