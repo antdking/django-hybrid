@@ -137,10 +137,10 @@ def expand_child(model: Type[Model], child: Tuple[str, Any]) -> Lookup:
 
 
 def get_connector(connector_name: Union[Q.AND, Q.OR]) -> Callable[[Wrapable, Wrapable], Wrapable]:
-    if connector_name == Q.AND:
-        connector = And
-    else:
-        connector = Or
+    connector = {
+        Q.AND: And,
+        Q.OR: Or,
+    }[connector_name]
 
     def guard_empty(lhs: Wrapable, rhs: Wrapable) -> Wrapable:
         nonlocal connector
