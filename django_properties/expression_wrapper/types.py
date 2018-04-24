@@ -12,7 +12,8 @@ Wrapable = Union['Expression', 'F', 'Q', 'Lookup', SupportsPython]
 
 
 class Wrapper(SupportsPython, Protocol):
-    def __init__(self, expression: Wrapable) -> None: ...
+    def __init__(self, expression: Wrapable) -> None:
+        ...
 
 
 TypeWrapperOrProxy = Union[Type[Wrapper], Callable[[Wrapable], Wrapper]]
