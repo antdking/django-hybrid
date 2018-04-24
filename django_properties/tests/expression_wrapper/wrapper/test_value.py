@@ -30,12 +30,13 @@ class TestValueCombine(ValueTestBase):
 
 
 class TestValueDuration(ValueTestBase):
-    pytestmark = pytest.mark.xfail(reason="CombinedExpression falls over due to output field detection")
-
     expression = Value(datetime.date(2018, 1, 1)) + datetime.timedelta(days=1)
     python_value = datetime.date(2018, 1, 2)
+
+    def test_expression_evaluates_to_expected(self):
+        pytest.xfail("CombinedExpression falls over due to output field detection")
 
 
 class TestValueDurationExplicit(ValueTestBase):
     expression = Value(datetime.date(2018, 1, 1), output_field=DateField()) + datetime.timedelta(days=1)
-    python_value = datetime.date(2018, 1, 1)
+    python_value = datetime.date(2018, 1, 2)
