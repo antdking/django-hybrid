@@ -47,12 +47,11 @@ def expand_query(model: Type[Model], query: Q) -> Wrapable:
     try:
         first_child = query.children[0]
     except IndexError:
-        expanded = EmptyQuery()
+        return EmptyQuery()
+    if isinstance(first_child, Q):
+        expanded = expand_query(model, first_child)
     else:
-        if isinstance(first_child, Q):
-            expanded = expand_query(model, first_child)
-        else:
-            expanded = expand_child(model, first_child)
+        expanded = expand_child(model, first_child)
 
     connector = get_connector(query.connector)
 

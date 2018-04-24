@@ -148,7 +148,7 @@ def test_empty_query():
 
 @skip_if_no_expression_comparison
 def test_negated_empty_query():
-    expected = Not(EmptyQuery())
+    expected = EmptyQuery()
     query = ~Q()
     expanded = expand_query(FakeModel, query)
     assert lookup_eq_lookup(expected, expanded)
@@ -199,3 +199,12 @@ def test_empty_in_empty():
     expanded = expand_query(FakeModel, query)
     assert lookup_eq_lookup(expected, expanded)
     assert expanded.as_python(None)
+
+
+@skip_if_no_expression_comparison
+def test_negated_empty_as_a_sibling():
+    expected = Exact(ExpressionWrapper(F('int_field'), output_field=IntegerField()), Value(1))
+    query = Q(~Q(), Q(int_field=1))
+    expanded = expand_query(FakeModel, query)
+    assert lookup_eq_lookup(expected, expanded)
+    assert wrap(expanded).as_python(dict(int_field=1))
