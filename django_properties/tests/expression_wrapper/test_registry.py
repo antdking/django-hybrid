@@ -64,3 +64,15 @@ def test_lifecycle():
     assert registry.registry.unregister(key) is None
     with raises(KeyError):
         registry.registry.get(key)
+
+
+def test_double_register():
+    key = object()
+    val = object()
+
+    registry.registry.register(key, val)
+
+    with raises(ValueError, match="Already in registry"):
+        registry.registry.register(key, val)
+
+    registry.registry.unregister(key)
