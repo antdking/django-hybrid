@@ -12,7 +12,7 @@ env:
 
 install:
   - pip install -U pip wheel setuptools
-  - pip install -e .[test] codecov "$ADDITIONAL_INSTALL"
+  - pip install -Ue .[test] codecov "$ADDITIONAL_INSTALL"
 
 matrix:
   include:
