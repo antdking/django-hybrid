@@ -1,6 +1,7 @@
 from inspect import Signature
 
 from django_properties.expression_wrapper import wrap
+from django_properties.expression_wrapper.registry import registry
 from django_properties.tests.utils import not_raises
 
 
@@ -34,3 +35,13 @@ def test_wrap_ignores_python_supported():
     obj_to_wrap = FakeSupportsPython()
     wrapped = wrap.wrap(obj_to_wrap)
     assert wrapped is obj_to_wrap
+
+
+def test_get_wrapper():
+    ObjToRegister = type('ObjToRegister', (object,), {})
+    registry.register(ObjToRegister, FakeWrapper)
+
+    assert wrap.get_wrapper(ObjToRegister) is FakeWrapper
+    assert wrap.get_wrapper(ObjToRegister()) is FakeWrapper
+
+    registry.unregister(ObjToRegister)
