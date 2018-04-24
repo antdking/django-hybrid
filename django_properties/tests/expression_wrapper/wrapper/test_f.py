@@ -30,5 +30,21 @@ class TestAccessRelation(Base):
     expression = F('related')
     python_value = 1
     fixture = dict(
-        related__pk=1,
+        related__pk=python_value,
+    )
+
+
+class TestAccessRelatedInt(Base):
+    expression = F('related__int_field')
+    python_value = 26
+    fixture = dict(
+        related__int_field=python_value,
+    )
+
+
+class TestCombining(Base):
+    expression = F('int_field') + 24
+    python_value = 50
+    fixture = dict(
+        int_field=26
     )
