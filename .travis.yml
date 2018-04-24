@@ -5,8 +5,24 @@ python:
   - "3.6"
   - "pypy3"
 
+env:
+  - ADDITIONAL_INSTALL="django==1.11.*"
+  - ADDITIONAL_INSTALL="django==2.0.*"
+  - ADDITIONAL_INSTALL="https://github.com/django/django/archive/master.tar.gz#egg=django"
+
 install:
-  - pip install tox-travis
+  - pip install -U pip wheel setuptools
+  - pip install -e .[test] codecov "$ADDITIONAL_INSTALL"
+
+matrix:
+  include:
+    - python: 3.6
+      env: ADDITIONAL_INSTALL=mypy
+      script: python -m mypy .
+      after_success:
 
 script:
-  - tox
+  - python -m pytest
+
+after_success:
+  - codecov
