@@ -1,4 +1,4 @@
-from factory import RelatedFactory
+from factory import RelatedFactory, SubFactory
 from factory.django import DjangoModelFactory
 from faker import Faker
 
@@ -26,4 +26,4 @@ class FTestingFactory(DjangoModelFactory):
 
     int_field = fake.pyint()
     str_field = fake.pystr(max_chars=FTestingModel._meta.get_field('str_field').max_length)
-    related = RelatedFactory(FTestingRelatedFactory)
+    related = SubFactory(FTestingRelatedFactory)

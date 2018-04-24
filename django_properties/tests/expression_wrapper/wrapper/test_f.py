@@ -24,3 +24,11 @@ class TestAccessStr(Base):
     fixture = dict(
         str_field=python_value,
     )
+
+
+class TestAccessRelation(Base):
+    expression = F('related')
+    python_value = 1
+    fixture = dict(
+        related__pk=1,
+    )
