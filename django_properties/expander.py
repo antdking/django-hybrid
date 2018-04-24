@@ -5,6 +5,7 @@ from django.db.models import ExpressionWrapper, F, Field, FieldDoesNotExist, Mod
 from django.db.models.constants import LOOKUP_SEP
 from django.db.models.lookups import Exact, Lookup
 from django.db.models.options import Options
+from django_properties.expression_wrapper.types import Wrapable
 
 from .expression_wrapper.wrap import wrap
 
@@ -13,7 +14,7 @@ LookupOrConnector_T = Union[Lookup, Connector_T]
 Expanded_T = Union[LookupOrConnector_T, 'Not']
 
 
-def expand_query(model: Type[Model], query: Q) -> Expanded_T:
+def expand_query(model: Type[Model], query: Q) -> Wrapable:
     """
     Expand query expressions into a more consumable form
 
@@ -23,19 +24,35 @@ def expand_query(model: Type[Model], query: Q) -> Expanded_T:
 
     We want to convert it into a form that will allow offloading logic into our
     expression wrappers.
+
+    We do not expect the output to be consumable within Django. This is only for
+    our python bindings.
+
     example:
     >>> Q(date_field__year__gte=2017)
     becomes:
     >>> YearGte(YearExtract(F('date_field')), 2017)
+
+    Some quirks to be aware of:
+    When combining, we return some special classes; Not and And.
+
+    When negating, a special Or class is returned.
+    These will not function correctly as Django expressions.
+
+    When an empty query is encountered, we return a special EmptyQuery object.
+    This will always return True.
+    It is also
     """
 
-    # TODO: the expanders won't evaluate to anything valid yet
-
-    first_child = query.children[0]
-    if isinstance(first_child, Q):
-        expanded = expand_query(model, first_child)
+    try:
+        first_child = query.children[0]
+    except IndexError:
+        expanded = EmptyQuery()
     else:
-        expanded = expand_child(model, first_child)
+        if isinstance(first_child, Q):
+            expanded = expand_query(model, first_child)
+        else:
+            expanded = expand_child(model, first_child)
 
     connector = get_connector(query.connector)
 
@@ -120,21 +137,42 @@ def expand_child(model: Type[Model], child: Tuple[str, Any]) -> Lookup:
     return lookup_class(expression, value)
 
 
-def get_connector(connector_name: Union[Q.AND, Q.OR]) -> Type[Connector_T]:
+def get_connector(connector_name: Union[Q.AND, Q.OR]) -> Callable[[Wrapable, Wrapable], Wrapable]:
     if connector_name == Q.AND:
-        return And
-    return Or
+        connector = And
+    else:
+        connector = Or
+
+    def guard_empty(lhs: Wrapable, rhs: Wrapable) -> Wrapable:
+        nonlocal connector
+        if isinstance(lhs, EmptyQuery):
+            return rhs
+        if isinstance(rhs, EmptyQuery):
+            return lhs
+        # to reduce as much exposure to EmptyQuery as possible, remove it where we know it's
+        # safe to remove. Django treats it as invisible, so should we.
+
+        return connector(lhs, rhs)
+    return guard_empty
 
 
 class Combineable:
     combiner = None  # type: Callable[[bool, bool], bool]
 
-    def __init__(self, lhs: LookupOrConnector_T, rhs: LookupOrConnector_T) -> None:
+    def __init__(self, lhs: Wrapable, rhs: Wrapable) -> None:
         self.lhs, self.rhs = lhs, rhs
 
     def as_python(self, obj: Any) -> bool:
         wrapped_lhs = wrap(self.lhs)
         wrapped_rhs = wrap(self.rhs)
+
+        # When we have an empty query, we need to ignore it.
+        # This isn't too much of an issue for And, but it will flip the Or.
+        if isinstance(self.lhs, EmptyQuery):
+            return wrapped_rhs.as_python(obj)
+        elif isinstance(self.rhs, EmptyQuery):
+            return wrapped_lhs.as_python(obj)
+
         return type(self).combiner(wrapped_lhs.as_python(obj), wrapped_rhs.as_python(obj))
 
 
@@ -147,8 +185,20 @@ class Or(Combineable):
 
 
 class Not:
-    def __init__(self, expression: LookupOrConnector_T) -> None:
+    def __init__(self, expression: Wrapable) -> None:
         self.expression = expression
 
     def as_python(self, obj: Any) -> bool:
+        if isinstance(self.expression, EmptyQuery):
+            # When an empty query is encountered, Django treats it as invisible.
+            # This causes a strange behaviour of ~Q() behaving the same as Q().
+            return True
+
         return not wrap(self.expression).as_python(obj)
+
+
+class EmptyQuery:
+
+    @staticmethod
+    def as_python(obj: Any) -> bool:
+        return True
