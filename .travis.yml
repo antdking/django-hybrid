@@ -11,6 +11,7 @@ env:
   - ADDITIONAL_INSTALL="https://github.com/django/django/archive/master.tar.gz#egg=django"
 
 install:
+  - pip uninstall -y pytest  # the default is conflicting with us
   - pip install -U pip wheel setuptools
   - pip install -Ue .[test] codecov "$ADDITIONAL_INSTALL"
 
