@@ -36,11 +36,31 @@ class WrapperTestBase:
             self.__model_instance = self.factory(**self.fixture)
         return self.__model_instance
 
-    def test_expression_evaluates_to_expected(self):
+    def get_as_python(self, model_instance):
         expression = self.get_expression()
-        wrapped_expression = wrap(expression)
+        wrapped = wrap(expression)
+        return wrapped.as_python(model_instance)
+
+    def get_from_database(self, model_instance):
+        expression = self.get_expression()
+        model_class = model_instance._meta.model
+
+        # we need to run this as an annotation, so fake it a little
+        annotated_instance = model_class.objects.annotate(
+            _wrapped_testing=expression,
+        ).get(pk=model_instance.pk)
+        return annotated_instance._wrapped_testing
+
+    def test_expression_evaluates_to_expected(self):
         model_instance = self.get_populated_model()
 
-        expression_outcome = wrapped_expression.as_python(model_instance)
+        expression_outcome = self.get_as_python(model_instance)
         python_outcome = self.python_equivalent(model_instance)
         assert expression_outcome == python_outcome
+
+    def test_parity_with_database(self):
+        model_instance = self.get_populated_model()
+        python_outcome = self.get_as_python(model_instance)
+        database_outcome = self.get_from_database(model_instance)
+
+        assert python_outcome == database_outcome
