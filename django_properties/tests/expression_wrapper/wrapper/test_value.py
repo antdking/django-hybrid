@@ -2,7 +2,7 @@ import datetime
 
 import pytest
 
-from django.db.models import Value, Model, DateField
+from django.db.models import Value, Model, DateField, IntegerField
 from .base import WrapperTestBase
 
 
@@ -14,22 +14,22 @@ class ValueTestBase(WrapperTestBase):
     model_class = StubModel
 
 
-class TestValueInt(ValueTestBase):
+class TestInt(ValueTestBase):
     expression = Value(28)
     python_value = 28
 
 
-class TestValueStr(ValueTestBase):
+class TestStr(ValueTestBase):
     expression = Value("some string")
     python_value = "some string"
 
 
-class TestValueCombine(ValueTestBase):
+class TestCombine(ValueTestBase):
     expression = Value(28) + 2
     python_value = 30
 
 
-class TestValueDuration(ValueTestBase):
+class TestDuration(ValueTestBase):
     expression = Value(datetime.date(2018, 1, 1)) + datetime.timedelta(days=1)
     python_value = datetime.date(2018, 1, 2)
 
@@ -37,6 +37,21 @@ class TestValueDuration(ValueTestBase):
         pytest.xfail("CombinedExpression falls over due to output field detection")
 
 
-class TestValueDurationExplicit(ValueTestBase):
+class TestDurationExplicit(ValueTestBase):
     expression = Value(datetime.date(2018, 1, 1), output_field=DateField()) + datetime.timedelta(days=1)
     python_value = datetime.date(2018, 1, 2)
+
+
+class TestNull(ValueTestBase):
+    expression = Value(None)
+    python_value = None
+
+
+class TestMultipleCombines(ValueTestBase):
+    expression = (Value(20) + 10) + 20
+    python_value = 50
+
+
+class TestCasting(ValueTestBase):
+    expression = Value("24", output_field=IntegerField())
+    python_value = 24
