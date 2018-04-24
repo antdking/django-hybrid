@@ -165,14 +165,6 @@ class Combineable:
     def as_python(self, obj: Any) -> bool:
         wrapped_lhs = wrap(self.lhs)
         wrapped_rhs = wrap(self.rhs)
-
-        # When we have an empty query, we need to ignore it.
-        # This isn't too much of an issue for And, but it will flip the Or.
-        if isinstance(self.lhs, EmptyQuery):
-            return wrapped_rhs.as_python(obj)
-        elif isinstance(self.rhs, EmptyQuery):
-            return wrapped_lhs.as_python(obj)
-
         return type(self).combiner(wrapped_lhs.as_python(obj), wrapped_rhs.as_python(obj))
 
 
