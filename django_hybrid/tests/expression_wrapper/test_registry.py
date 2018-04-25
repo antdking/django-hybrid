@@ -2,8 +2,8 @@ from inspect import Signature
 
 from pytest import raises
 
-from django_properties.expression_wrapper import registry
-from django_properties.tests.utils import not_raises
+from django_hybrid.expression_wrapper import registry
+from django_hybrid.tests.utils import not_raises
 
 
 def test_interface_exposed():

@@ -3,7 +3,7 @@ from typing import Any
 import pytest
 from django.db.models import Avg, CharField, ExpressionWrapper, F, Value
 
-from django_properties.expression_wrapper.wrap import wrap
+from django_hybrid.expression_wrapper.wrap import wrap
 
 
 def obj(**kwargs: Any) -> object:

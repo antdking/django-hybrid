@@ -5,7 +5,7 @@ from typing import Any, Mapping
 from django.db.models import Model
 from django.db.models.constants import LOOKUP_SEP
 
-from django_properties.utils import nested_itemgetter
+from .utils import nested_itemgetter
 
 _notset = object()
 

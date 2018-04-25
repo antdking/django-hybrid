@@ -7,6 +7,6 @@ DATABASES = {
 }
 
 INSTALLED_APPS = [
-    'django_properties',
-    'django_properties.tests.expression_wrapper.wrapper',
+    'django_hybrid',
+    'django_hybrid.tests.expression_wrapper.wrapper',
 ]

@@ -1,8 +1,8 @@
 from inspect import Signature
 
-from django_properties.expression_wrapper import wrap
-from django_properties.expression_wrapper.registry import registry
-from django_properties.tests.utils import not_raises
+from django_hybrid.expression_wrapper import wrap
+from django_hybrid.expression_wrapper.registry import registry
+from django_hybrid.tests.utils import not_raises
 
 
 class FakeSupportsPython:
@@ -23,7 +23,7 @@ def test_wrap_signature():
 
 
 def test_wrap_wraps(mocker):
-    mocker.patch('django_properties.expression_wrapper.wrap.registry.get', return_value=FakeWrapper)
+    mocker.patch('django_hybrid.expression_wrapper.wrap.registry.get', return_value=FakeWrapper)
 
     obj_to_wrap = object()
     wrapped = wrap.wrap(obj_to_wrap)

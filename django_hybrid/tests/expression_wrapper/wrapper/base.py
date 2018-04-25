@@ -3,7 +3,7 @@ from typing import ClassVar, Union, Mapping, Any, Type
 
 import pytest
 
-from django_properties.expression_wrapper.wrap import wrap
+from django_hybrid.expression_wrapper.wrap import wrap
 
 from django.db.models import Lookup, Q, F, Expression, Model
 

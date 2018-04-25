@@ -4,9 +4,9 @@ from django.db.models import ExpressionWrapper, F, Q, Value, IntegerField
 from django.db.models.functions import Lower
 from django.db.models.lookups import Exact, GreaterThan
 
-from django_properties.expander import expand_query, Not, And, EmptyQuery
-from django_properties.expression_wrapper.wrap import wrap
-from django_properties.tests.utils import are_equal
+from django_hybrid.expander import expand_query, Not, And, EmptyQuery
+from django_hybrid.expression_wrapper.wrap import wrap
+from django_hybrid.tests.utils import are_equal
 
 models.CharField.register_lookup(Lower)
 

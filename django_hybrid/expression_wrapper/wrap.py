@@ -1,6 +1,6 @@
 from typing import Type, Union
 
-from django_properties.types import SupportsPython
+from django_hybrid.types import SupportsPython
 
 from .registry import registry
 from .types import TypeWrapperOrProxy, Wrapable
