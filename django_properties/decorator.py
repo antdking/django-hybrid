@@ -1,6 +1,6 @@
 from typing import Any, Callable, Optional, Type, TypeVar, Union, cast, overload
 
-from django.db.models import ExpressionWrapper, Expression
+from django.db.models import ExpressionWrapper, Expression, F
 from .expression_wrapper.types import Wrapable
 from .expression_wrapper.wrap import wrap
 from .types import SupportsPython
@@ -10,7 +10,7 @@ V_Class = TypeVar('V_Class', bound=Wrapable)
 HybridMethodType = Callable[[Type[T]], V_Class]
 
 
-class Hybrid:
+class Hybrid(classmethod):
     __slots__ = (
         'func',
         'name',
@@ -20,31 +20,33 @@ class Hybrid:
 
     def __init__(self,
                  func: HybridMethodType,
+                 *,
                  name: Optional[str] = None) -> None:
+        super().__init__(func)
         self.func = func
         self.name = name or func.__name__
         self._cached_expression = None  # type: Optional[Wrapable]
         self._cached_wrapped = None  # type: Optional[SupportsPython]
 
     @overload
-    def __get__(self, instance: T, owner: Type[T]) -> Any:
+    def __get__(self, instance: T, owner: Optional[Type[T]] = None) -> Any:
         ...
 
     @overload
     def __get__(self, instance: None, owner: Type[T]) -> V_Class:
         ...
 
-    def __get__(self, instance: Optional[T], owner: Type[T]) -> Union[Any, V_Class]:
+    def __get__(self, instance: Optional[T], owner: Optional[Type[T]] = None) -> Union[Any, V_Class]:
         if instance is None:
-            return self.class_method_behaviour(owner)
+            return self.class_method_behaviour(cast(Type[T], owner))
         return self.instance_method_behaviour(instance)
 
-    def __set__(self, instance: T, value: Any) -> None:
-        instance.__dict__[self.name] = value
-
-    def __del__(self) -> None:
+    def reset_cache(self) -> None:
         self._cached_expression = None
         self._cached_wrapped = None
+
+    def __del__(self) -> None:
+        self.reset_cache()
 
     def __set_name__(self, owner: Type[T], name: str) -> None:
         self.name = name
@@ -63,7 +65,7 @@ class Hybrid:
 
 
 class NamedExpression(ExpressionWrapper):  # type: ignore
-    def __init__(self, expression: Expression, default_alias: str) -> None:
+    def __init__(self, expression: Union[Expression, F], default_alias: str) -> None:
         super().__init__(expression, None)
         self.default_alias = default_alias
 
