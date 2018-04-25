@@ -10,7 +10,7 @@ V_Class = TypeVar('V_Class', bound=Wrapable)
 HybridMethodType = Callable[[Type[T]], V_Class]
 
 
-class Hybrid(classmethod):
+class HybridProperty(classmethod):
     __slots__ = (
         'func',
         'name',
@@ -68,6 +68,3 @@ class NamedExpression(ExpressionWrapper):  # type: ignore
     def __init__(self, expression: Union[Expression, F], default_alias: str) -> None:
         super().__init__(expression, None)
         self.default_alias = default_alias
-
-
-hybrid = Hybrid

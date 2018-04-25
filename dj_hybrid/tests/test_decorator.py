@@ -5,8 +5,9 @@ from unittest.mock import Mock
 from django.db.models import F
 from pytest import raises
 
-from dj_hybrid import decorator
-from dj_hybrid.decorator import hybrid, Hybrid, NamedExpression
+import dj_hybrid
+from dj_hybrid import decorator, hybrid_property
+from dj_hybrid.decorator import HybridProperty, NamedExpression
 from .utils import not_raises, are_equal
 
 
@@ -17,26 +18,26 @@ def get_some_class():
             self.int_field = int_field
             self.char_field = char_field
 
-        @hybrid
+        @hybrid_property
         def int_field_alias(cls):
             return F('int_field')
 
-        @hybrid
+        @dj_hybrid.property
         def char_field_alias(cls):
             return F('char_field')
 
-        @hybrid
+        @dj_hybrid.property
         def add_2(cls):
             return cls.int_field_alias + 20
     return SomeClass
 
 
 def test_interface():
-    assert hybrid is Hybrid
+    assert hybrid_property is dj_hybrid.property is HybridProperty
 
     # we follow an uncalled decorator pattern, return_value=None
     # essentially. @hybrid, not @hybrid()
-    sig = signature(hybrid)
+    sig = signature(hybrid_property)
     with not_raises(TypeError):
         sig.bind(object)
 
