@@ -76,7 +76,7 @@ def test_caching_behaviour__class(mocker):
     assert are_equal(first, third)
 
 
-def test_caching_behaviour__instance(mocker):  # we need a big enough string to prevent memory sharing
+def test_caching_behaviour__instance(mocker):
     mocked_wrap = mocker.spy(decorator, 'wrap')  # type: Mock
     SomeClass = get_some_class()
     instance = SomeClass(char_field="hello")
