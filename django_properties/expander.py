@@ -188,3 +188,6 @@ class EmptyQuery:
     @staticmethod
     def as_python(obj: Any) -> bool:
         return True
+
+    def __eq__(self, other: Any) -> bool:
+        return type(self) is type(other)
