@@ -73,10 +73,10 @@ from django.db.models.lookups import (
 from django.utils import timezone
 from django.utils.crypto import random
 
-from django_hybrid.expander import expand_query
-from django_hybrid.resolve import get_resolver
-from django_hybrid.types import SupportsPython, SupportsPythonComparison
-from django_hybrid.utils import cached_property
+from dj_hybrid.expander import expand_query
+from dj_hybrid.resolve import get_resolver
+from dj_hybrid.types import SupportsPython, SupportsPythonComparison
+from dj_hybrid.utils import cached_property
 
 from .base import ExpressionWrapper, FakeQuery
 from .registry import register

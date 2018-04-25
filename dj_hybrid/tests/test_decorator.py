@@ -5,8 +5,8 @@ from unittest.mock import Mock
 from django.db.models import F
 from pytest import raises
 
-from django_hybrid import decorator
-from django_hybrid.decorator import hybrid, Hybrid, NamedExpression
+from dj_hybrid import decorator
+from dj_hybrid.decorator import hybrid, Hybrid, NamedExpression
 from .utils import not_raises, are_equal
 
 

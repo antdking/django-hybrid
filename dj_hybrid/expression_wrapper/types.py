@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Callable, Type, Union
 
 from typing_extensions import Protocol
 
-from django_hybrid.types import SupportsPython
+from dj_hybrid.types import SupportsPython
 
 if TYPE_CHECKING:
     from django.db.models import Expression, F, Q, Lookup

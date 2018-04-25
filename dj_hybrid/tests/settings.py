@@ -7,6 +7,6 @@ DATABASES = {
 }
 
 INSTALLED_APPS = [
-    'django_hybrid',
-    'django_hybrid.tests.expression_wrapper.wrapper',
+    'dj_hybrid',
+    'dj_hybrid.tests.expression_wrapper.wrapper',
 ]

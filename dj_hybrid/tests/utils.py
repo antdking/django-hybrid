@@ -10,8 +10,8 @@ from django.db.models import Lookup, Expression, Field
 from django.db.models.expressions import F
 from django.utils.functional import cached_property
 
-from django_hybrid.expander import Not, Combineable
-from django_hybrid.expression_wrapper.base import ExpressionWrapper
+from dj_hybrid.expander import Not, Combineable
+from dj_hybrid.expression_wrapper.base import ExpressionWrapper
 
 ExceptionType = Union[BaseException, Type[BaseException]]
 

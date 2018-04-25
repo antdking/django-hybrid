@@ -5,7 +5,7 @@ from django.db.models import ExpressionWrapper, F, Field, FieldDoesNotExist, Mod
 from django.db.models.constants import LOOKUP_SEP
 from django.db.models.lookups import Exact, Lookup
 from django.db.models.options import Options
-from django_hybrid.expression_wrapper.types import Wrapable
+from dj_hybrid.expression_wrapper.types import Wrapable
 
 from .expression_wrapper.wrap import wrap
 

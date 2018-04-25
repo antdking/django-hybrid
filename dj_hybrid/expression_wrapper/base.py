@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Generic, Tuple, TypeVar, cast
 
-from django_hybrid.utils import cached_property
+from dj_hybrid.utils import cached_property
 
 from .types import Wrapable, Wrapper
 
