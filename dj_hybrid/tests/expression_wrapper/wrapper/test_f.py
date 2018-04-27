@@ -28,7 +28,7 @@ class TestAccessStr(Base):
 
 class TestAccessRelation(Base):
     expression = F('related')
-    python_value = 1
+    python_value = 1  # this is the ID. we shouldn't resolve the instance
     fixture = dict(
         related__pk=python_value,
     )

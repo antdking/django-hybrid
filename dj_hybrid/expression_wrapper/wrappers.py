@@ -204,6 +204,10 @@ class RandomWrapper(ExpressionWrapper[Random], OutputFieldMixin):
 
     @cached_property
     def consistent_random(self) -> float:
+        # TODO: talk to someone about what behaviour this should have.
+        # Is this the right place to cache? We're caching wrappers elsewhere, which means this
+        # value is going to get persisted throughout.
+        # As of right now, it's broken..
         return cast(float, random.random())
 
 
