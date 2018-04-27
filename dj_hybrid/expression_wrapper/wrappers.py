@@ -337,12 +337,19 @@ class TransformWrapper(FuncWrapper[Transform], Generic[T_Transform]):
 
 @register(Now)
 class NowWrapper(ExpressionWrapper[Now], OutputFieldMixin):
-    def as_python(self, obj: Any) -> datetime:
-        return cast(datetime, self.to_value(self.consistent_now))
+    def __init__(self, expression):
+        super().__init__(expression)
+        self.now_cache = WeakKeyDictionary()  # type: MutableMapping[Any, datetime]
 
-    @cached_property
-    def consistent_now(self) -> datetime:
-        return cast(datetime, timezone.now())
+    def as_python(self, obj: Any) -> datetime:
+        return cast(datetime, self.to_value(self.now_for_instance(obj)))
+
+    def now_for_instance(self, obj: Any) -> datetime:
+        try:
+            return self.now_cache[obj]
+        except KeyError:
+            self.now_cache[obj] = cast(datetime, timezone.now())
+            return self.now_cache[obj]
 
 
 @register(Lower)
