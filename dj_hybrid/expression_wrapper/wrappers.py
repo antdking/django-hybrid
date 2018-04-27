@@ -16,7 +16,8 @@ from typing import (
     TypeVar,
     Union,
     cast,
-)
+    Mapping, MutableMapping)
+from weakref import WeakKeyDictionary
 
 import django
 from django.core.exceptions import FieldError
@@ -196,19 +197,21 @@ def f_resolver(expression: F) -> ColWrapper:
 
 @register(Random)
 class RandomWrapper(ExpressionWrapper[Random], OutputFieldMixin):
+    def __init__(self, expression) -> None:
+        super().__init__(expression)
+        self.instance_cache = WeakKeyDictionary()  # type: MutableMapping[Any, float]
 
     def as_python(self, obj: Any) -> float:
         return cast(float, self.to_value(
-            self.consistent_random,
+            self.random_for_instance(obj),
         ))
 
-    @cached_property
-    def consistent_random(self) -> float:
-        # TODO: talk to someone about what behaviour this should have.
-        # Is this the right place to cache? We're caching wrappers elsewhere, which means this
-        # value is going to get persisted throughout.
-        # As of right now, it's broken..
-        return cast(float, random.random())
+    def random_for_instance(self, obj: Any) -> float:
+        try:
+            return self.instance_cache[obj]
+        except KeyError:
+            self.instance_cache[obj] = cast(float, random.random())
+            return self.instance_cache[obj]
 
 
 @register(DjangoExpressionWrapper)
