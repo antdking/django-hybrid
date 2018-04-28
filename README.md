@@ -79,3 +79,54 @@ If you find bugs, please report them into Github Issues.
 
 ### Contributing
 \# TODO
+
+
+### Known limitations
+
+#### Caching with reference to instances
+To allow for a consistent values when using `Random`, `Now`, or any other function that
+generates values on the server, we use weak references as keys to cache the values.
+There are 2 issues with this:
+- You will not be able to use these functions when using `dict`.
+- The values are generated on access. This is fine for `Random`, however
+  `Now` will produce a different timestamp per instance, instead of per statement.
+  This should be alright for most usecases, but you should be aware non-the-less.
+
+
+#### Referencing other Hybrid properties
+I'll start off by saying, it's untested, but in theory, it will work.
+What will **NOT** work is referencing hybrids on a different object.
+
+essentially, don't do this:
+```python
+class A:
+  b = OneToOneField('B')
+  @dj_hybrid.property
+  def hybrid(cls):
+    return Ref('b__hybrid') + 2
+
+class B:
+  @dj_hybrid.property
+  def hybrid(cls):
+    return F('int_field') + 1
+```
+
+Getting this evaluate in python is easy, however there may be issues
+getting it working cleanly in the database.
+
+An option might be to generate expressions that look akin to this:
+
+```python
+inner = B.objects.annotate(hybrid=F('int_field') + 1).filter(pk=OuterRef('b'))
+outer = A.objects.annotate(hybrid=Subquery(inner.values('hybrid'), output_field=IntegerField()) + 2)
+```
+
+A better way to go might be to auto-prefix as much as possible, and collapse
+anything that isn't concerned about where it is.
+```python
+A.objects.annotate(
+  hybrid=F('b__int_field') + 1,
+)
+```
+
+This might not live in the package, however.
