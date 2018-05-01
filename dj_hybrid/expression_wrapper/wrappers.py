@@ -197,7 +197,7 @@ def f_resolver(expression: F) -> ColWrapper:
 
 @register(Random)
 class RandomWrapper(ExpressionWrapper[Random], OutputFieldMixin):
-    def __init__(self, expression) -> None:
+    def __init__(self, expression: Random) -> None:
         super().__init__(expression)
         self.instance_cache = WeakKeyDictionary()  # type: MutableMapping[Any, float]
 
@@ -337,7 +337,7 @@ class TransformWrapper(FuncWrapper[Transform], Generic[T_Transform]):
 
 @register(Now)
 class NowWrapper(ExpressionWrapper[Now], OutputFieldMixin):
-    def __init__(self, expression):
+    def __init__(self, expression: Now) -> None:
         super().__init__(expression)
         self.now_cache = WeakKeyDictionary()  # type: MutableMapping[Any, datetime]
 
