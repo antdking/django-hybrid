@@ -81,7 +81,7 @@ You can reference other hybrid properties that are defined on the same object.
 
 There are 2 ways of doing this:
 
-**Through the Database**  *(recommended)*
+##### Through the Database  *(recommended)*
 You can access a hybrid property as you would with any other field or annotation.
 To enable doing this, you can either manually annotate all of your hybrids, or
 you can use a special method that will find any relations you have.
@@ -106,7 +106,7 @@ A.objects.annotate(
 )
 ```
 
-**Direct Reference**
+##### Direct Reference
 A hybrid property has access to the class it is attached to. You can use this
 get the contents of another hybrid property, and use it directly in your new hybrid property.
 
