@@ -27,8 +27,14 @@ def get_some_class():
             return F('char_field')
 
         @dj_hybrid.property
-        def add_2(cls):
+        def add_20(cls):
+            # same as F('int_field') + 20
             return cls.int_field_alias + 20
+
+        @dj_hybrid.property
+        def add_30(cls):
+            # same as a1=F('int_field'), a2=F('a1') + 20
+            return F('int_field_alias') + 30
     return SomeClass
 
 
@@ -103,3 +109,28 @@ def test_caching_behaviour__instance(mocker):
     assert are_equal(first_cache, third_cache)
     assert first is third
     assert mocked_wrap.call_count == 2
+
+
+def test_dependency_fetching__no_dependencies():
+    klass = get_some_class()
+    expected = [klass.int_field_alias]
+    actual = klass.int_field_alias.with_dependencies()
+    assert are_equal(expected, actual)
+
+
+def test_reference_hybrid_directly():
+    # `add_20` directly references a hybrid. The effect is the expressions are
+    # combined, instead of it being treated as a database level reference
+    klass = get_some_class()
+    expected = [klass.add_20]
+    actual = klass.add_20.with_dependencies()
+    assert are_equal(expected, actual)
+
+
+def test_reference_indirectly():
+    # looking for dependencies to be detected due to use of `F`
+    klass = get_some_class()
+    expected = [klass.add_30, klass.int_field_alias]
+    actual = klass.add_30.with_dependencies()
+    assert are_equal(expected, actual)
+
