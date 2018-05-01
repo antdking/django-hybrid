@@ -73,6 +73,58 @@ as an instance property, the output will be the evaluated calculation.
 ```
 
 
+#### Hybrid Dependencies
+You can reference other hybrid properties that are defined on the same object.
+
+There are 2 ways of doing this:
+
+**Through the Database**  *(recommended)*
+You can access a hybrid property as you would with any other field or annotation.
+To enable doing this, you can either manually annotate all of your hybrids, or
+you can use a special method that will find any relations you have.
+
+```python
+class A(Model):
+  @dj_hybrid.property
+  def val1(cls):
+    return Value(20)
+
+  @dj_hybrid.property
+  def val2(cls):
+    return F('val1') + Value(40)
+
+A.objects.annotate(A.val1, A.val2)
+# or:
+A.objects.annotate(*A.val2.with_dependencies())
+# equivilant
+A.objects.annotate(
+  val1=Value(20),
+  val2=F('val1') + Value(40),
+)
+```
+
+**Direct Reference**
+A hybrid property has access to the class it is attached to. You can use this
+get the contents of another hybrid property, and use it directly in your new hybrid property.
+
+It's not advisable to do complicated expressions using this method.
+
+```python
+class A(Model):
+  @dj_hybrid.property
+  def val1(cls):
+    return Value(20)
+
+  @dj_hybrid.property
+  def val2(cls):
+    return cls.val1 + Value(40)
+
+A.objects.annotate(A.val2)
+# equivalent:
+A.objects.annotate(Value(20) + Value(40))
+```
+
+
 ### Bugs?
 If you find bugs, please report them into Github Issues.
 \# TODO: introduce bug report templates
@@ -94,8 +146,7 @@ There are 2 issues with this:
 
 
 #### Referencing other Hybrid properties
-I'll start off by saying, it's untested, but in theory, it will work.
-What will **NOT** work is referencing hybrids on a different object.
+You cannot reference hybrids on different objects.
 
 essentially, don't do this:
 ```python
