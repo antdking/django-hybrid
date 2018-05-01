@@ -7,7 +7,7 @@ from pytest import raises
 
 import dj_hybrid
 from dj_hybrid import decorator, hybrid_property
-from dj_hybrid.decorator import HybridProperty, NamedExpression
+from dj_hybrid.decorator import HybridProperty, HybridWrapper
 from .utils import not_raises, are_equal
 
 
@@ -51,8 +51,9 @@ def test_interface():
 
 
 def test_int_field_alias__class():
-    expected = NamedExpression(F('int_field'), 'int_field_alias')
-    actual = get_some_class().int_field_alias
+    klass = get_some_class()
+    expected = HybridWrapper(F('int_field'), 'int_field_alias', klass)
+    actual = klass.int_field_alias
     assert are_equal(expected, actual)
 
 
@@ -64,7 +65,7 @@ def test_int_field_alias__instance():
 
 
 def test_caching_behaviour__class(mocker):
-    mocked_named = mocker.spy(NamedExpression, '__init__')  # type: Mock
+    mocked_named = mocker.spy(HybridWrapper, '__init__')  # type: Mock
     SomeClass = get_some_class()
     first = SomeClass.int_field_alias
     second = SomeClass.int_field_alias

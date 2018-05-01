@@ -1,6 +1,8 @@
-from typing import Any, Callable, Optional, Type, TypeVar, Union, cast, overload
+from typing import Any, Callable, Optional, Type, TypeVar, Union, cast, overload, Tuple, Sequence, Generator
 
 from django.db.models import ExpressionWrapper, Expression, F
+from django.db.models.constants import LOOKUP_SEP
+
 from .expression_wrapper.types import Wrapable
 from .expression_wrapper.wrap import wrap
 from .types import SupportsPython
@@ -17,6 +19,7 @@ class HybridProperty(classmethod):
         '_cached_expression',
         '_cached_wrapped',
     )
+    is_hybrid = True
 
     def __init__(self,
                  func: HybridMethodType,
@@ -53,7 +56,7 @@ class HybridProperty(classmethod):
 
     def class_method_behaviour(self, owner: Type[T]) -> V_Class:
         if self._cached_expression is None:
-            self._cached_expression = NamedExpression(self.func(owner), self.name)
+            self._cached_expression = HybridWrapper(self.func(owner), self.name, owner)
         return cast(V_Class, self._cached_expression)
 
     def instance_method_behaviour(self, instance: T) -> Any:
@@ -64,7 +67,28 @@ class HybridProperty(classmethod):
         return self._cached_wrapped.as_python(instance)
 
 
-class NamedExpression(ExpressionWrapper):  # type: ignore
-    def __init__(self, expression: Union[Expression, F], default_alias: str) -> None:
+class HybridWrapper(ExpressionWrapper):  # type: ignore
+    def __init__(self, expression: Union[Expression, F], default_alias: str, owner: Type[T]) -> None:
         super().__init__(expression, None)
         self.default_alias = default_alias
+        self.owner = owner
+
+    def with_dependencies(self) -> Sequence['HybridWrapper']:
+        dependencies = [self]
+        for f in find_f(self):
+            if LOOKUP_SEP in f.name:
+                raise NotImplementedError("can't resolve a relation yet")
+
+            dependency_property = self.owner.__dict__.get(f.name, None)
+            if getattr(dependency_property, 'is_hybrid', False):
+                dependencies.append(getattr(self.owner, f.name))
+
+        return dependencies
+
+
+def find_f(expression: Union[Expression, F]) -> Generator[F, None, None]:
+    if isinstance(expression, F):
+        yield F
+    else:
+        for source in expression.get_source_expressions():
+            yield from find_f(source)
