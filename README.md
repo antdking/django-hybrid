@@ -2,6 +2,9 @@
 
 Hybrid model properties for Django
 
+[![Build Status](https://travis-ci.org/cybojenix/django-hybrid.svg?branch=master)](https://travis-ci.org/cybojenix/django-hybrid)
+[![codecov](https://codecov.io/gh/cybojenix/django-hybrid/branch/master/graph/badge.svg)](https://codecov.io/gh/cybojenix/django-hybrid)
+
 
 ### What is this?
 Django Hybrid introduces a way to consolidate logic you run in the database,
