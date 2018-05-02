@@ -36,9 +36,12 @@ class WrapperTestBase:
             self.__model_instance = self.factory(**self.fixture)
         return self.__model_instance
 
-    def get_as_python(self, model_instance):
+    def get_wrapped(self):
         expression = self.get_expression()
-        wrapped = wrap(expression)
+        return wrap(expression)
+
+    def get_as_python(self, model_instance):
+        wrapped = self.get_wrapped()
         return wrapped.as_python(model_instance)
 
     def get_from_database(self, model_instance):
