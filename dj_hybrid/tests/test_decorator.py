@@ -70,47 +70,6 @@ def test_int_field_alias__instance():
     assert expected == actual
 
 
-def test_caching_behaviour__class(mocker):
-    mocked_named = mocker.spy(HybridWrapper, '__init__')  # type: Mock
-    SomeClass = get_some_class()
-    first = SomeClass.int_field_alias
-    second = SomeClass.int_field_alias
-    assert mocked_named.call_count == 1
-    assert first is second
-    SomeClass.__dict__['int_field_alias'].reset_cache()
-    third = SomeClass.int_field_alias
-    assert mocked_named.call_count == 2
-    assert third is not first
-    assert are_equal(first, third)
-
-
-def test_caching_behaviour__instance(mocker):
-    mocked_wrap = mocker.spy(decorator, 'wrap')  # type: Mock
-    SomeClass = get_some_class()
-    instance = SomeClass(char_field="hello")
-
-    descriptor = SomeClass.__dict__['char_field_alias']
-
-    first = instance.char_field_alias
-    first_cache = descriptor._cached_wrapped
-    second = instance.char_field_alias
-    second_cache = descriptor._cached_wrapped
-
-    assert first is second
-    assert first_cache is second_cache
-    assert mocked_wrap.call_count == 1
-
-    SomeClass.__dict__['char_field_alias'].reset_cache()
-    assert not descriptor._cached_wrapped
-
-    third = instance.char_field_alias
-    third_cache = descriptor._cached_wrapped
-    assert first_cache is not third_cache
-    assert are_equal(first_cache, third_cache)
-    assert first is third
-    assert mocked_wrap.call_count == 2
-
-
 def test_dependency_fetching__no_dependencies():
     klass = get_some_class()
     expected = [klass.int_field_alias]
