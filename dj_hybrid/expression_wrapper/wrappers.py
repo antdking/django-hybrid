@@ -2,6 +2,7 @@ import operator
 import re
 import statistics
 from datetime import date, datetime
+from functools import lru_cache
 from typing import (
     Any,
     AnyStr,
@@ -21,6 +22,9 @@ from weakref import WeakKeyDictionary
 
 import django
 from django.core.exceptions import FieldError
+from django.db import router, DEFAULT_DB_ALIAS, connections
+from django.db.backends.base.base import BaseDatabaseWrapper
+from django.db.backends.base.operations import BaseDatabaseOperations
 from django.db.models import (
     Aggregate,
     Avg,
@@ -71,6 +75,7 @@ from django.db.models.lookups import (
     StartsWith,
     Transform,
 )
+from django.db.models.sql.compiler import SQLCompiler
 from django.utils import timezone
 from django.utils.crypto import random
 
@@ -114,17 +119,21 @@ There are some main types of expressions in Django:
 """
 
 
+class PostConverter:
+    __slots__ = (
+        'value',
+        'expression',
+        'model_class',
+    )
+
+    def __init__(self, value, expression, model_class):
+        self.value = value
+        self.expression = expression
+        self.model_class = model_class
+
+
 class OutputFieldMixin:
     def to_value(self, value: Any) -> Any:
-        resolved_expression = self.resolved_expression  # type: ignore
-        try:
-            field = resolved_expression.field  # type: Field
-        except FieldError:
-            pass  # no output_field defined
-        else:
-            if field:
-                # TODO: decide if it's better to use get_db_converters here
-                value = field.to_python(value)
         return value
 
 

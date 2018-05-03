@@ -16,7 +16,7 @@ class TestStrToInt(BaseExpressionWrapperTest):
 
 
 class TestIntToStr(BaseExpressionWrapperTest):
-    python_value = "20"
+    python_value = 20
     expression = ExpressionWrapper(Value(20), CharField())
 
     # TODO: this test currently fails parity checks.

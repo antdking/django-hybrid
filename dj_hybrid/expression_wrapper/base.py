@@ -1,11 +1,11 @@
-from typing import TYPE_CHECKING, Any, Generic, Tuple, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Generic, Tuple, TypeVar, cast, Type, Dict, Optional
 
 from dj_hybrid.utils import cached_property
 
 from .types import Wrapable, Wrapper
 
 if TYPE_CHECKING:
-    from django.db.models import Q
+    from django.db.models import Q, Model
     from django.db.models.expressions import Col
 
 
@@ -14,20 +14,29 @@ T_Wrapable = TypeVar('T_Wrapable', bound=Wrapable)
 
 
 class FakeQuery:
-    @classmethod
-    def resolve_ref(cls, name: str, *_: Any, **__: Any) -> 'Col':
+    __slots__ = (
+        'model',
+        'context',
+    )
+
+    def __init__(self, model: Optional[Type['Model']] = None) -> None:
+        self.model = model
+        self.context = {}  # type: Dict
+
+    @staticmethod
+    def resolve_ref(name: str, *_: Any, **__: Any) -> 'Col':
         from django.db.models.expressions import Col
         # We need to do some faking of the ref resolution.
         # This essentially enables us to have a bit more complete
         # workings of F().
         return Col(name, None)
 
-    @classmethod
-    def _add_q(cls, node: T_Q, *_: Any, **__: Any) -> Tuple[T_Q, None]:
+    @staticmethod
+    def _add_q(node: T_Q, *_: Any, **__: Any) -> Tuple[T_Q, None]:
         return node, None
 
-    @classmethod
-    def promote_joins(cls, *_: Any, **__: Any) -> None:
+    @staticmethod
+    def promote_joins(*_: Any, **__: Any) -> None:
         pass
 
 

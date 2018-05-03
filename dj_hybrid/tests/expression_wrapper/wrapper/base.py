@@ -3,6 +3,7 @@ from typing import ClassVar, Union, Mapping, Any, Type
 
 import pytest
 
+from dj_hybrid.expression_wrapper.convert import get_converters, apply_converters
 from dj_hybrid.expression_wrapper.wrap import wrap
 
 from django.db.models import Lookup, Q, F, Expression, Model
@@ -42,6 +43,9 @@ class WrapperTestBase:
 
     def get_as_python(self, model_instance):
         wrapped = self.get_wrapped()
+        as_python = wrapped.as_python(model_instance)
+        converters = get_converters(wrapped.resolved_expression, model_instance)
+        return apply_converters(as_python, converters, model_instance)
         return wrapped.as_python(model_instance)
 
     def get_from_database(self, model_instance):
