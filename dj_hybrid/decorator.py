@@ -1,4 +1,4 @@
-from typing import Any, Callable, Optional, Type, TypeVar, Union, cast, overload, Sequence, Generator
+from typing import Any, Callable, Optional, Type, TypeVar, Union, cast, overload, Tuple, Sequence, Generator
 
 from django.db.models import ExpressionWrapper, Expression, F
 from django.db.models.constants import LOOKUP_SEP
@@ -6,6 +6,7 @@ from django.db.models.constants import LOOKUP_SEP
 from dj_hybrid.types import Slots
 from .expression_wrapper.types import Wrapable
 from .expression_wrapper.wrap import wrap
+from .types import SupportsPython
 
 T = TypeVar('T')
 V_Class = TypeVar('V_Class', bound=Wrapable)
@@ -28,6 +29,8 @@ class HybridProperty(classmethod):
         super().__init__(func)
         self.func = func
         self.name = name or func.__name__
+        self._cached_expression = None  # type: Optional['HybridWrapper']
+        self._cached_wrapped = None  # type: Optional[SupportsPython]
 
     @overload
     def __get__(self, instance: T, owner: Optional[Type[T]] = None) -> Any:
@@ -42,14 +45,27 @@ class HybridProperty(classmethod):
             return self.class_method_behaviour(cast(Type[T], owner))
         return self.instance_method_behaviour(instance)
 
+    def reset_cache(self) -> None:
+        self._cached_expression = None
+        self._cached_wrapped = None
+
+    def __del__(self) -> None:
+        self.reset_cache()
+
     def __set_name__(self, owner: Type[T], name: str) -> None:
         self.name = name
 
     def class_method_behaviour(self, owner: Type[T]) -> 'HybridWrapper':
-        return HybridWrapper(self.func(owner), self.name, owner)
+        if self._cached_expression is None:
+            self._cached_expression = HybridWrapper(self.func(owner), self.name, owner)
+        return self._cached_expression
 
     def instance_method_behaviour(self, instance: T) -> Any:
-        return wrap(self.func(type(instance))).as_python(instance)
+        if self._cached_wrapped is None:
+            self._cached_wrapped = wrap(
+                self.func(type(instance))
+            )
+        return self._cached_wrapped.as_python(instance)
 
 
 class HybridWrapper(ExpressionWrapper):  # type: ignore
