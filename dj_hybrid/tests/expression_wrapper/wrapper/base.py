@@ -3,6 +3,7 @@ from typing import ClassVar, Union, Mapping, Any, Type
 
 import pytest
 
+from dj_hybrid.expression_wrapper.base import FakeQuery
 from dj_hybrid.expression_wrapper.convert import get_converters, apply_converters
 from dj_hybrid.expression_wrapper.wrap import wrap
 
@@ -41,12 +42,19 @@ class WrapperTestBase:
         expression = self.get_expression()
         return wrap(expression)
 
+    def resolve(self, expression, model_instance):
+        if hasattr(expression, 'resolve_expression'):
+            model = model_instance._meta.model
+            fake_query = FakeQuery(model)
+            return expression.resolve_expression(fake_query)
+        else:
+            return expression
+
     def get_as_python(self, model_instance):
-        wrapped = self.get_wrapped()
+        wrapped = self.resolve(self.get_wrapped(), model_instance)
         as_python = wrapped.as_python(model_instance)
         converters = get_converters(wrapped.resolved_expression, model_instance)
         return apply_converters(as_python, converters, model_instance)
-        return wrapped.as_python(model_instance)
 
     def get_from_database(self, model_instance):
         expression = self.get_expression()

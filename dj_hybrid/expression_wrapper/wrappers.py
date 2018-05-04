@@ -2,7 +2,6 @@ import operator
 import re
 import statistics
 from datetime import date, datetime
-from functools import lru_cache
 from typing import (
     Any,
     AnyStr,
@@ -17,14 +16,10 @@ from typing import (
     TypeVar,
     Union,
     cast,
-    Mapping, MutableMapping)
+    MutableMapping)
 from weakref import WeakKeyDictionary
 
 import django
-from django.core.exceptions import FieldError
-from django.db import router, DEFAULT_DB_ALIAS, connections
-from django.db.backends.base.base import BaseDatabaseWrapper
-from django.db.backends.base.operations import BaseDatabaseOperations
 from django.db.models import (
     Aggregate,
     Avg,
@@ -75,14 +70,12 @@ from django.db.models.lookups import (
     StartsWith,
     Transform,
 )
-from django.db.models.sql.compiler import SQLCompiler
 from django.utils import timezone
 from django.utils.crypto import random
 
 from dj_hybrid.expander import expand_query
 from dj_hybrid.resolve import get_resolver
 from dj_hybrid.types import SupportsPython, SupportsPythonComparison, Slots
-from dj_hybrid.utils import cached_property
 
 from .base import ExpressionWrapper, FakeQuery
 from .registry import register
@@ -119,25 +112,18 @@ There are some main types of expressions in Django:
 """
 
 
-class OutputFieldMixin:
-    __slots__ = ()  # type: Slots
-
-    def to_value(self, value: Any) -> Any:
-        return value
-
-
 @register(Value)
 @register(DurationValue)
-class ValueWrapper(ExpressionWrapper[Union[Value, DurationValue]], OutputFieldMixin):
+class ValueWrapper(ExpressionWrapper[Union[Value, DurationValue]]):
     __slots__ = ()  # type: Slots
 
     def as_python(self, obj: Any) -> Any:
-        value = self.resolved_expression.value
-        return self.to_value(value)
+        value = self.expression.value
+        return value
 
 
 @register(CombinedExpression)
-class CombinedExpressionWrapper(ExpressionWrapper[CombinedExpression], OutputFieldMixin):
+class CombinedExpressionWrapper(ExpressionWrapper[CombinedExpression]):
     __slots__ = ()  # type: Slots
 
     _connectors = {
@@ -154,16 +140,16 @@ class CombinedExpressionWrapper(ExpressionWrapper[CombinedExpression], OutputFie
 
     def as_python(self, obj: Any) -> Any:
 
-        lhs_wrapped = wrap(self.resolved_expression.lhs)
-        rhs_wrapped = wrap(self.resolved_expression.rhs)
+        lhs_wrapped = wrap(self.expression.lhs)
+        rhs_wrapped = wrap(self.expression.rhs)
         lhs = lhs_wrapped.as_python(obj)
         rhs = rhs_wrapped.as_python(obj)
         op = self._get_operator()
         value = op(lhs, rhs)
-        return self.to_value(value)
+        return value
 
     def _get_operator(self) -> Callable[[Any, Any], Any]:
-        connector = self.resolved_expression.connector  # type: str
+        connector = self.expression.connector  # type: str
         op = self._connectors[connector]
         return op
 
@@ -174,7 +160,7 @@ class ColWrapper(ExpressionWrapper[Col]):
 
     def as_python(self, obj: Any) -> Any:
         resolver = get_resolver(obj)
-        resolved = resolver.resolve(self.resolved_expression.alias)
+        resolved = resolver.resolve(self.expression.alias)
 
         # This behaviour might not be right, but everything I've seen suggests it..
         # We need to turn a model instance into its PK value.
@@ -184,20 +170,26 @@ class ColWrapper(ExpressionWrapper[Col]):
 
 
 @register(F)
-def f_resolver(expression: F) -> ColWrapper:
-    # F doesn't behave the same as a normal expression.
-    # It essentially acts an alias for either Col or Ref.
-    # This will probably cause some broken parts down the road,
-    # however let's actually get this running first!
+class FWrapper(ExpressionWrapper[F]):
+    __slots__ = ()  # type: Slots
 
-    expression = expression.resolve_expression(
-        FakeQuery(),
-    )
-    return ColWrapper(expression)
+    def as_python(self, obj: Any):
+        resolver = get_resolver(obj)
+        resolved = resolver.resolve(self.expression.name)
+        if isinstance(resolved, Model):
+            return resolved.pk
+        return resolved
+
+    def resolve_expression(self, query: FakeQuery) -> SupportsPython:
+        new_expression = self.expression.resolve_expression(query)
+        wrapped = wrap(new_expression)
+        if hasattr(wrapped, 'resolve_expression'):
+            wrapped = wrapped.resolve_expression(query)
+        return wrapped
 
 
 @register(Random)
-class RandomWrapper(ExpressionWrapper[Random], OutputFieldMixin):
+class RandomWrapper(ExpressionWrapper[Random]):
     __slots__ = (
         'instance_cache',
     )  # type: Slots
@@ -207,9 +199,7 @@ class RandomWrapper(ExpressionWrapper[Random], OutputFieldMixin):
         self.instance_cache = WeakKeyDictionary()  # type: MutableMapping[Any, float]
 
     def as_python(self, obj: Any) -> float:
-        return cast(float, self.to_value(
-            self.random_for_instance(obj),
-        ))
+        return cast(float, self.random_for_instance(obj))
 
     def random_for_instance(self, obj: Any) -> float:
         try:
@@ -220,29 +210,29 @@ class RandomWrapper(ExpressionWrapper[Random], OutputFieldMixin):
 
 
 @register(DjangoExpressionWrapper)
-class ExpressionWrapperWrapper(ExpressionWrapper[DjangoExpressionWrapper], OutputFieldMixin):
+class ExpressionWrapperWrapper(ExpressionWrapper[DjangoExpressionWrapper]):
     __slots__ = ()  # type: Slots
 
     def as_python(self, obj: Any) -> Any:
         wrapped = wrap(self.expression.expression)
         value = wrapped.as_python(obj)
-        return self.to_value(value)
+        return value
 
 
 T_Func = TypeVar('T_Func', bound=Func)
 
 
-class FuncWrapper(ExpressionWrapper[Func], OutputFieldMixin, Generic[T_Func]):
+class FuncWrapper(ExpressionWrapper[Func], Generic[T_Func]):
     __slots__ = ()  # type: Slots
     op = None  # type: Callable
 
     def as_python(self, obj: Any) -> Any:
         input_values = self.get_source_values(obj)
         output_value = type(self).op(*input_values)
-        return self.to_value(output_value)
+        return output_value
 
     def get_source_values(self, obj: Any) -> Generator[Any, None, None]:
-        for expression in self.resolved_expression.source_expressions:
+        for expression in self.expression.source_expressions:
             wrapped = wrap(expression)
             yield wrapped.as_python(obj)
 
@@ -361,7 +351,7 @@ class TransformWrapper(FuncWrapper[Transform], Generic[T_Transform]):
 
 
 @register(Now)
-class NowWrapper(ExpressionWrapper[Now], OutputFieldMixin):
+class NowWrapper(ExpressionWrapper[Now]):
     __slots__ = (
         'now_cache',
     )  # type: Slots
@@ -371,7 +361,7 @@ class NowWrapper(ExpressionWrapper[Now], OutputFieldMixin):
         self.now_cache = WeakKeyDictionary()  # type: MutableMapping[Any, datetime]
 
     def as_python(self, obj: Any) -> datetime:
-        return cast(datetime, self.to_value(self.now_for_instance(obj)))
+        return cast(datetime, self.now_for_instance(obj))
 
     def now_for_instance(self, obj: Any) -> datetime:
         try:
@@ -429,15 +419,15 @@ class LookupWrapper(ExpressionWrapper[Lookup], Generic[T_Lookup]):
     op = None  # type: Callable[[Any, Any], bool]
 
     def as_python(self, obj: Any) -> bool:
-        lhs_wrapped = wrap(self.resolved_expression.lhs)
+        lhs_wrapped = wrap(self.expression.lhs)
         rhs_wrapped = self.get_wrapped_rhs()
         lhs_value = lhs_wrapped.as_python(obj)
         rhs_value = rhs_wrapped.as_python(obj)
         return type(self).op(lhs_value, rhs_value)
 
     def get_wrapped_rhs(self) -> SupportsPython:
-        rhs = self.resolved_expression.rhs
-        for transform in self.resolved_expression.bilateral_transforms:
+        rhs = self.expression.rhs
+        for transform in self.expression.bilateral_transforms:
             rhs = transform(rhs)
         return wrap(rhs)
 
@@ -601,11 +591,11 @@ class ConditionNotMet(Exception):
 
 
 @register(Case)
-class CaseWrapper(ExpressionWrapper[Case], OutputFieldMixin):
+class CaseWrapper(ExpressionWrapper[Case]):
     __slots__ = ()  # type: Slots
 
     def as_python(self, obj: Any) -> Any:
-        statement = self.resolved_expression
+        statement = self.expression
         for case in statement.cases:  # type: When
             wrapped_case = wrap(case)
             try:
@@ -615,7 +605,7 @@ class CaseWrapper(ExpressionWrapper[Case], OutputFieldMixin):
                 pass
         else:
             value = wrap(statement.default).as_python(obj)
-        return self.to_value(value)
+        return value
 
 
 @register(When)
@@ -623,7 +613,7 @@ class WhenWrapper(ExpressionWrapper[When]):
     __slots__ = ()  # type: Slots
 
     def as_python(self, obj: Any) -> Any:
-        statement = self.resolved_expression
+        statement = self.expression
         wrapped_condition = wrap(statement.condition)
         if wrapped_condition.as_python(obj):
             return wrap(statement.result).as_python(obj)
