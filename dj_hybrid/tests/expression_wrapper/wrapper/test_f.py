@@ -1,4 +1,5 @@
-from django.db.models import F
+from django.db.models import F, CharField
+from django.db.models.functions import Cast
 
 from .base import WrapperTestBase
 from .factory import FTestingFactory
@@ -47,4 +48,12 @@ class TestCombining(Base):
     python_value = 50
     fixture = dict(
         int_field=26
+    )
+
+
+class TestCasting(Base):
+    expression = Cast(F('int_field'), CharField())
+    python_value = "50"
+    fixture = dict(
+        int_field=50
     )

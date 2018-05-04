@@ -1,7 +1,7 @@
 from typing import Any
 
 import pytest
-from django.db.models import Avg, CharField, ExpressionWrapper, F, Value
+from django.db.models import Avg, CharField, F, Value
 
 from dj_hybrid.expression_wrapper.wrap import wrap
 
@@ -40,7 +40,6 @@ def test_field(field_name: str, value: Any) -> None:
     (5, obj(f1=3, f2=2), F('f1')+F('f2')),
     (5, obj(f1=2), F('f1') + 3),
     (8, obj(f1=5), 3 + F('f1')),
-    (str(8), obj(f1=8), ExpressionWrapper(F('f1'), CharField()))
 ])
 def test_field_combining(expected: Any, obj: Any, expression: Any) -> None:
     wrapped_expression = wrap(expression)
