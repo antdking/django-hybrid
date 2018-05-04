@@ -22,13 +22,15 @@ def test_wrap_signature():
         signature.bind(expression=object())
 
 
-def test_wrap_wraps(mocker):
-    mocker.patch('dj_hybrid.expression_wrapper.wrap.registry.get', return_value=FakeWrapper)
+def test_wrap_wraps():
+    ObjToRegister = type('ObjToRegister', (object,), {})
+    registry.register(ObjToRegister, FakeWrapper)
 
-    obj_to_wrap = object()
-    wrapped = wrap.wrap(obj_to_wrap)
+    wrapped = wrap.wrap(ObjToRegister)
     assert isinstance(wrapped, FakeWrapper)
-    assert wrapped.expression is obj_to_wrap
+    assert wrapped.expression is ObjToRegister
+
+    registry.unregister(ObjToRegister)
 
 
 def test_wrap_ignores_python_supported():

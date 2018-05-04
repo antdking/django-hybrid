@@ -81,7 +81,7 @@ from django.utils.crypto import random
 
 from dj_hybrid.expander import expand_query
 from dj_hybrid.resolve import get_resolver
-from dj_hybrid.types import SupportsPython, SupportsPythonComparison
+from dj_hybrid.types import SupportsPython, SupportsPythonComparison, Slots
 from dj_hybrid.utils import cached_property
 
 from .base import ExpressionWrapper, FakeQuery
@@ -119,20 +119,9 @@ There are some main types of expressions in Django:
 """
 
 
-class PostConverter:
-    __slots__ = (
-        'value',
-        'expression',
-        'model_class',
-    )
-
-    def __init__(self, value, expression, model_class):
-        self.value = value
-        self.expression = expression
-        self.model_class = model_class
-
-
 class OutputFieldMixin:
+    __slots__ = ()  # type: Slots
+
     def to_value(self, value: Any) -> Any:
         return value
 
@@ -140,6 +129,7 @@ class OutputFieldMixin:
 @register(Value)
 @register(DurationValue)
 class ValueWrapper(ExpressionWrapper[Union[Value, DurationValue]], OutputFieldMixin):
+    __slots__ = ()  # type: Slots
 
     def as_python(self, obj: Any) -> Any:
         value = self.resolved_expression.value
@@ -148,6 +138,7 @@ class ValueWrapper(ExpressionWrapper[Union[Value, DurationValue]], OutputFieldMi
 
 @register(CombinedExpression)
 class CombinedExpressionWrapper(ExpressionWrapper[CombinedExpression], OutputFieldMixin):
+    __slots__ = ()  # type: Slots
 
     _connectors = {
         Combinable.ADD: operator.add,
@@ -179,6 +170,7 @@ class CombinedExpressionWrapper(ExpressionWrapper[CombinedExpression], OutputFie
 
 @register(Col)
 class ColWrapper(ExpressionWrapper[Col]):
+    __slots__ = ()  # type: Slots
 
     def as_python(self, obj: Any) -> Any:
         resolver = get_resolver(obj)
@@ -206,6 +198,10 @@ def f_resolver(expression: F) -> ColWrapper:
 
 @register(Random)
 class RandomWrapper(ExpressionWrapper[Random], OutputFieldMixin):
+    __slots__ = (
+        'instance_cache',
+    )  # type: Slots
+
     def __init__(self, expression: Random) -> None:
         super().__init__(expression)
         self.instance_cache = WeakKeyDictionary()  # type: MutableMapping[Any, float]
@@ -225,6 +221,7 @@ class RandomWrapper(ExpressionWrapper[Random], OutputFieldMixin):
 
 @register(DjangoExpressionWrapper)
 class ExpressionWrapperWrapper(ExpressionWrapper[DjangoExpressionWrapper], OutputFieldMixin):
+    __slots__ = ()  # type: Slots
 
     def as_python(self, obj: Any) -> Any:
         wrapped = wrap(self.expression.expression)
@@ -236,6 +233,7 @@ T_Func = TypeVar('T_Func', bound=Func)
 
 
 class FuncWrapper(ExpressionWrapper[Func], OutputFieldMixin, Generic[T_Func]):
+    __slots__ = ()  # type: Slots
     op = None  # type: Callable
 
     def as_python(self, obj: Any) -> Any:
@@ -253,41 +251,49 @@ T_Aggregate = TypeVar('T_Aggregate', bound=Aggregate)
 
 
 class AggregateWrapper(FuncWrapper[Aggregate], Generic[T_Aggregate]):
+    __slots__ = ()  # type: Slots
     op = None  # type: Callable[[Iterable[Any]], Any]
 
 
 @register(Avg)
 class AvgWrapper(AggregateWrapper[Avg]):
+    __slots__ = ()  # type: Slots
     op = statistics.mean
 
 
 @register(Count)
 class CountWrapper(AggregateWrapper[Count]):
+    __slots__ = ()  # type: Slots
     op = len
 
 
 @register(Max)
 class MaxWrapper(AggregateWrapper[Count]):
+    __slots__ = ()  # type: Slots
     op = max
 
 
 @register(Min)
 class MinWrapper(AggregateWrapper[Min]):
+    __slots__ = ()  # type: Slots
     op = min
 
 
 @register(StdDev)
 class StdDevWrapper(AggregateWrapper[StdDev]):
+    __slots__ = ()  # type: Slots
     op = statistics.stdev
 
 
 @register(Sum)
 class SumWrapper(AggregateWrapper[Sum]):
+    __slots__ = ()  # type: Slots
     op = sum
 
 
 @register(Variance)
 class VarianceWrapper(AggregateWrapper[Variance]):
+    __slots__ = ()  # type: Slots
     op = statistics.variance
 
 
@@ -296,6 +302,8 @@ Cast_T = TypeVar('Cast_T')
 
 @register(Cast)
 class CastWrapper(FuncWrapper[Cast]):
+    __slots__ = ()  # type: Slots
+
     @staticmethod
     def op(value: Cast_T) -> Cast_T:
         return value
@@ -306,6 +314,8 @@ Coalesce_T = TypeVar('Coalesce_T')
 
 @register(Coalesce)
 class CoalesceWrapper(FuncWrapper[Coalesce]):
+    __slots__ = ()  # type: Slots
+
     @staticmethod
     def op(*values: Coalesce_T) -> Optional[Coalesce_T]:
         return next(
@@ -317,6 +327,8 @@ class CoalesceWrapper(FuncWrapper[Coalesce]):
 @register(ConcatPair)
 @register(Concat)
 class ConcatPairWrapper(FuncWrapper[Union[Concat, ConcatPair]]):
+    __slots__ = ()  # type: Slots
+
     @staticmethod
     def op(*values: str) -> str:
         return ''.join(str(v) for v in values)
@@ -324,16 +336,19 @@ class ConcatPairWrapper(FuncWrapper[Union[Concat, ConcatPair]]):
 
 @register(Greatest)
 class GreatestWrapper(FuncWrapper[Greatest]):
+    __slots__ = ()  # type: Slots
     op = max
 
 
 @register(Least)
 class LeastWrapper(FuncWrapper[Least]):
+    __slots__ = ()  # type: Slots
     op = min
 
 
 @register(Length)
 class LengthWrapper(FuncWrapper[Length]):
+    __slots__ = ()  # type: Slots
     op = len
 
 
@@ -341,11 +356,16 @@ T_Transform = TypeVar('T_Transform', bound=Transform)
 
 
 class TransformWrapper(FuncWrapper[Transform], Generic[T_Transform]):
+    __slots__ = ()  # type: Slots
     op = None  # type: Callable[[Any], Any]
 
 
 @register(Now)
 class NowWrapper(ExpressionWrapper[Now], OutputFieldMixin):
+    __slots__ = (
+        'now_cache',
+    )  # type: Slots
+
     def __init__(self, expression: Now) -> None:
         super().__init__(expression)
         self.now_cache = WeakKeyDictionary()  # type: MutableMapping[Any, datetime]
@@ -363,6 +383,8 @@ class NowWrapper(ExpressionWrapper[Now], OutputFieldMixin):
 
 @register(Lower)
 class LowerWrapper(TransformWrapper[Lower]):
+    __slots__ = ()  # type: Slots
+
     @staticmethod
     def op(value: AnyStr) -> AnyStr:
         if value:
@@ -372,6 +394,8 @@ class LowerWrapper(TransformWrapper[Lower]):
 
 @register(Upper)
 class UpperWrapper(TransformWrapper[Upper]):
+    __slots__ = ()  # type: Slots
+
     @staticmethod
     def op(value: AnyStr) -> AnyStr:
         if value:
@@ -386,6 +410,8 @@ except ImportError:
 else:
     @register(StrIndex)
     class StrIndexWrapper(FuncWrapper[StrIndex]):
+        __slots__ = ()  # type: Slots
+
         @staticmethod
         def op(string: AnyStr, lookup: AnyStr) -> int:
             try:
@@ -399,6 +425,7 @@ T_Lookup = TypeVar('T_Lookup', bound=Lookup)
 
 
 class LookupWrapper(ExpressionWrapper[Lookup], Generic[T_Lookup]):
+    __slots__ = ()  # type: Slots
     op = None  # type: Callable[[Any, Any], bool]
 
     def as_python(self, obj: Any) -> bool:
@@ -417,11 +444,14 @@ class LookupWrapper(ExpressionWrapper[Lookup], Generic[T_Lookup]):
 
 @register(Exact)
 class ExactWrapper(LookupWrapper[Exact]):
+    __slots__ = ()  # type: Slots
     op = operator.eq
 
 
 @register(IExact)
 class IExactWrapper(LookupWrapper[IExact]):
+    __slots__ = ()  # type: Slots
+
     @staticmethod
     def op(lhs: AnyStr, rhs: AnyStr) -> bool:
         if lhs and rhs:
@@ -433,28 +463,34 @@ class IExactWrapper(LookupWrapper[IExact]):
 
 @register(GreaterThan)
 class GreaterThanWrapper(LookupWrapper[GreaterThan], Generic[T_Lookup]):
+    __slots__ = ()  # type: Slots
     op = operator.gt
 
 
 @register(GreaterThanOrEqual)
 @register(IntegerGreaterThanOrEqual)
 class GreaterThanOrEqualWrapper(LookupWrapper[Union[GreaterThanOrEqual, IntegerGreaterThanOrEqual]], Generic[T_Lookup]):
+    __slots__ = ()  # type: Slots
     op = operator.ge
 
 
 @register(LessThan)
 @register(IntegerLessThan)
 class LessThanWrapper(LookupWrapper[Union[LessThan, IntegerLessThan]], Generic[T_Lookup]):
+    __slots__ = ()  # type: Slots
     op = operator.lt
 
 
 @register(LessThanOrEqual)
 class LessThanOrEqualWrapper(LookupWrapper[LessThanOrEqual], Generic[T_Lookup]):
+    __slots__ = ()  # type: Slots
     op = operator.le
 
 
 @register(In)
 class InWrapper(LookupWrapper[In]):
+    __slots__ = ()  # type: Slots
+
     @staticmethod
     def op(lhs: Any, rhs: Container) -> bool:
         # TODO: support querysets?
@@ -463,11 +499,14 @@ class InWrapper(LookupWrapper[In]):
 
 @register(Contains)
 class ContainsWrapper(LookupWrapper[Contains]):
+    __slots__ = ()  # type: Slots
     op = operator.contains
 
 
 @register(IContains)
 class IContainsWrapper(LookupWrapper[IContains]):
+    __slots__ = ()  # type: Slots
+
     @staticmethod
     def op(lhs: AnyStr, rhs: AnyStr) -> bool:
         if lhs and rhs:
@@ -477,11 +516,14 @@ class IContainsWrapper(LookupWrapper[IContains]):
 
 @register(StartsWith)
 class StartsWithWrapper(LookupWrapper[StartsWith]):
+    __slots__ = ()  # type: Slots
     op = str.startswith
 
 
 @register(IStartsWith)
 class IStartsWithWrapper(LookupWrapper[IStartsWith]):
+    __slots__ = ()  # type: Slots
+
     @staticmethod
     def op(lhs: AnyStr, rhs: AnyStr) -> bool:
         if lhs and rhs:
@@ -492,11 +534,13 @@ class IStartsWithWrapper(LookupWrapper[IStartsWith]):
 
 @register(EndsWith)
 class EndsWithWrapper(LookupWrapper[EndsWith]):
+    __slots__ = ()  # type: Slots
     op = str.endswith
 
 
 @register(IEndsWith)
 class IEndsWithWrapper(LookupWrapper[IEndsWith]):
+    __slots__ = ()  # type: Slots
     @staticmethod
     def op(lhs: AnyStr, rhs: AnyStr) -> bool:
         return lhs.lower().endswith(rhs.lower())
@@ -507,6 +551,7 @@ Rangeable_T = TypeVar('Rangeable_T', int, date)
 
 @register(Range)
 class RangeWrapper(LookupWrapper[Range]):
+    __slots__ = ()  # type: Slots
 
     @staticmethod
     def op(lhs: Rangeable_T, rhs: Tuple[Rangeable_T, Rangeable_T]) -> bool:
@@ -515,6 +560,8 @@ class RangeWrapper(LookupWrapper[Range]):
 
 @register(IsNull)
 class IsNullWrapper(LookupWrapper[IsNull]):
+    __slots__ = ()  # type: Slots
+
     @staticmethod
     def op(lhs: Any, wants_null: bool) -> bool:
         if wants_null:
@@ -524,6 +571,7 @@ class IsNullWrapper(LookupWrapper[IsNull]):
 
 @register(Regex)
 class RegexWrapper(LookupWrapper[Regex], Generic[T_Lookup]):
+    __slots__ = ()  # type: Slots
     re_flags = 0
 
     @classmethod
@@ -534,11 +582,13 @@ class RegexWrapper(LookupWrapper[Regex], Generic[T_Lookup]):
 
 @register(IRegex)
 class IRegexWrapper(RegexWrapper[IRegex]):
+    __slots__ = ()  # type: Slots
     re_flags = re.IGNORECASE
 
 
 @register(Q)
 class QWrapper(ExpressionWrapper[Q]):
+    __slots__ = ()  # type: Slots
 
     def as_python(self, obj: Model) -> bool:
         expanded_query = expand_query(obj._meta.model, self.expression)
@@ -552,6 +602,7 @@ class ConditionNotMet(Exception):
 
 @register(Case)
 class CaseWrapper(ExpressionWrapper[Case], OutputFieldMixin):
+    __slots__ = ()  # type: Slots
 
     def as_python(self, obj: Any) -> Any:
         statement = self.resolved_expression
@@ -569,6 +620,7 @@ class CaseWrapper(ExpressionWrapper[Case], OutputFieldMixin):
 
 @register(When)
 class WhenWrapper(ExpressionWrapper[When]):
+    __slots__ = ()  # type: Slots
 
     def as_python(self, obj: Any) -> Any:
         statement = self.resolved_expression

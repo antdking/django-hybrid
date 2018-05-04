@@ -1,5 +1,6 @@
 from typing import Callable, Dict, Optional, Type, TypeVar, Union, overload
 
+from dj_hybrid.types import Slots
 from .types import TypeWrapperOrProxy, Wrapable
 
 Registrable = Type[Wrapable]
@@ -7,6 +8,10 @@ T_TypeWrapperOrProxy = TypeVar('T_TypeWrapperOrProxy', bound=TypeWrapperOrProxy)
 
 
 class Registry:
+    __slots__ = (
+        'registry',
+    )  # type: Slots
+
     def __init__(self) -> None:
         self.registry = {}  # type: Dict[Type[Wrapable], TypeWrapperOrProxy]
 

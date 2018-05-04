@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Any, Generic, Tuple, TypeVar, cast, Type, Dict, Optional
+import copy
+from typing import TYPE_CHECKING, Any, Generic, Tuple, TypeVar, cast, Type, Dict, Optional, ClassVar, Union
 
 from dj_hybrid.utils import cached_property
 
@@ -7,6 +8,7 @@ from .types import Wrapable, Wrapper
 if TYPE_CHECKING:
     from django.db.models import Q, Model
     from django.db.models.expressions import Col
+    from django.db.models.sql import Query
 
 
 T_Q = TypeVar('T_Q', bound='Q')
@@ -18,6 +20,8 @@ class FakeQuery:
         'model',
         'context',
     )
+
+    for_python = True  # type: ClassVar[bool]
 
     def __init__(self, model: Optional[Type['Model']] = None) -> None:
         self.model = model
@@ -41,14 +45,17 @@ class FakeQuery:
 
 
 class ExpressionWrapper(Wrapper, Generic[T_Wrapable]):
+    __slots__ = ('expression',)
+
     def __init__(self, expression: T_Wrapable) -> None:
         super().__init__(expression)
         self.expression = expression
 
-    @cached_property
+    @property
     def resolved_expression(self) -> T_Wrapable:
         # ok, this is a bit of a lie. This can infact return any Wrapable, however
         # for most cases, it will be of the same type as to what we're dealing with.
         if hasattr(self.expression, 'resolve_expression'):
             return cast(T_Wrapable, self.expression.resolve_expression(FakeQuery))
         return self.expression
+

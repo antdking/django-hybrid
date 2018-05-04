@@ -6,6 +6,7 @@ from django.db.models.constants import LOOKUP_SEP
 from django.db.models.lookups import Exact, Lookup
 from django.db.models.options import Options
 from dj_hybrid.expression_wrapper.types import Wrapable
+from dj_hybrid.types import Slots
 
 from .expression_wrapper.wrap import wrap
 
@@ -156,6 +157,11 @@ def get_connector(connector_name: Union[Q.AND, Q.OR]) -> Callable[[Wrapable, Wra
 
 
 class Combineable:
+    __slots__ = (
+        'lhs',
+        'rhs',
+    )  # type: Slots
+
     combiner = None  # type: Callable[[bool, bool], bool]
 
     def __init__(self, lhs: Wrapable, rhs: Wrapable) -> None:
@@ -168,14 +174,18 @@ class Combineable:
 
 
 class And(Combineable):
+    __slots__ = ()  # type: Slots
     combiner = operator.and_
 
 
 class Or(Combineable):
+    __slots__ = ()  # type: Slots
     combiner = operator.or_
 
 
 class Not:
+    __slots__ = ('expression', )  # type: Slots
+
     def __init__(self, expression: Wrapable) -> None:
         self.expression = expression
 
@@ -184,6 +194,7 @@ class Not:
 
 
 class EmptyQuery:
+    __slots__ = ()  # type: Slots
 
     @staticmethod
     def as_python(obj: Any) -> bool:

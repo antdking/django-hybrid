@@ -47,6 +47,7 @@ if django.VERSION >= (2,):
         connection = get_connection(db)
         converters, expression = converters_paired
         for converter in converters:
+            converter = cast(ConverterNew, converter)
             value = converter(value, expression, connection)
         return value
 else:
@@ -58,6 +59,7 @@ else:
         connection = get_connection(db)
         converters, expression = converters_paired
         for converter in converters:
+            converter = cast(ConverterOld, converter)
             value = converter(value, expression, connection, {})
         return value
 

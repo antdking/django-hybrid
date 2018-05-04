@@ -3,6 +3,7 @@ from typing import Any, Callable, Optional, Type, TypeVar, Union, cast, overload
 from django.db.models import ExpressionWrapper, Expression, F
 from django.db.models.constants import LOOKUP_SEP
 
+from dj_hybrid.types import Slots
 from .expression_wrapper.types import Wrapable
 from .expression_wrapper.wrap import wrap
 
