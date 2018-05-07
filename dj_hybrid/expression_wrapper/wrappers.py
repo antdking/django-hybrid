@@ -74,6 +74,7 @@ from django.utils import timezone
 from django.utils.crypto import random
 
 from dj_hybrid.expander import expand_query
+from dj_hybrid.expression_wrapper.types import SupportsResolving
 from dj_hybrid.resolve import get_resolver
 from dj_hybrid.types import SupportsPython, SupportsPythonComparison, Slots
 
@@ -173,7 +174,7 @@ class ColWrapper(ExpressionWrapper[Col]):
 class FWrapper(ExpressionWrapper[F]):
     __slots__ = ()  # type: Slots
 
-    def as_python(self, obj: Any):
+    def as_python(self, obj: Any) -> Any:
         resolver = get_resolver(obj)
         resolved = resolver.resolve(self.expression.name)
         if isinstance(resolved, Model):
@@ -183,7 +184,7 @@ class FWrapper(ExpressionWrapper[F]):
     def resolve_expression(self, query: FakeQuery) -> SupportsPython:
         new_expression = self.expression.resolve_expression(query)
         wrapped = wrap(new_expression)
-        if hasattr(wrapped, 'resolve_expression'):
+        if isinstance(wrapped, SupportsResolving):
             wrapped = wrapped.resolve_expression(query)
         return wrapped
 
@@ -199,7 +200,7 @@ class RandomWrapper(ExpressionWrapper[Random]):
         self.instance_cache = WeakKeyDictionary()  # type: MutableMapping[Any, float]
 
     def as_python(self, obj: Any) -> float:
-        return cast(float, self.random_for_instance(obj))
+        return self.random_for_instance(obj)
 
     def random_for_instance(self, obj: Any) -> float:
         try:
@@ -361,7 +362,7 @@ class NowWrapper(ExpressionWrapper[Now]):
         self.now_cache = WeakKeyDictionary()  # type: MutableMapping[Any, datetime]
 
     def as_python(self, obj: Any) -> datetime:
-        return cast(datetime, self.now_for_instance(obj))
+        return self.now_for_instance(obj)
 
     def now_for_instance(self, obj: Any) -> datetime:
         try:

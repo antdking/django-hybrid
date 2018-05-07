@@ -1,9 +1,9 @@
 import copy
-from typing import TYPE_CHECKING, Any, Generic, Tuple, TypeVar, Type, Dict, Optional, ClassVar
+from typing import TYPE_CHECKING, Any, Generic, Tuple, TypeVar, Type, Dict, Optional, ClassVar, cast
 
 from dj_hybrid.types import SupportsPython
 
-from .types import Wrapable, Wrapper
+from .types import Wrapable, Wrapper, SupportsConversion, SupportsResolving, SupportsCopy
 
 if TYPE_CHECKING:
     from django.db.models import Q, Model, Field
@@ -62,16 +62,15 @@ class ExpressionWrapper(Wrapper, Generic[T_Wrapable]):
         if self._is_resolved:
             return self
 
-        c = copy.copy(self)
+        c = copy.copy(self)  # type: ExpressionWrapper[Wrapable]
         c._is_resolved = True
-        if hasattr(c.expression, 'resolve_expression'):
+        if isinstance(c.expression, SupportsResolving):
             c.expression = c.expression.resolve_expression(query)
-        elif hasattr(c.expression, 'copy'):
+        elif isinstance(c.expression, SupportsCopy):
             c.expression = c.expression.copy()
         else:
             c.expression = copy.copy(c.expression)
         return c
 
-    @property
-    def resolved_expression(self):
-        return self.resolve_expression(FakeQuery()).expression
+    def get_for_conversion(self) -> SupportsConversion:
+        return cast(SupportsConversion, self.expression)

@@ -9,17 +9,18 @@ from django.db.models import Model, Expression
 from django.db.models.sql.compiler import SQLCompiler
 
 from dj_hybrid.expression_wrapper.base import FakeQuery
+from dj_hybrid.expression_wrapper.types import SupportsConversion
 
-T_Expression = TypeVar('T_Expression', bound=Expression)
+T_SupportsConversion = TypeVar('T_SupportsConversion', bound=SupportsConversion)
 
-ConverterNew = Callable[[Any, T_Expression, BaseDatabaseWrapper], Any]
-ConverterOld = Callable[[Any, T_Expression, BaseDatabaseWrapper, Dict], Any]
+ConverterNew = Callable[[Any, T_SupportsConversion, BaseDatabaseWrapper], Any]
+ConverterOld = Callable[[Any, T_SupportsConversion, BaseDatabaseWrapper, Dict], Any]
 Converter = Union[ConverterNew, ConverterOld]
-ConvertersExpressionPair = Tuple[List[Converter], T_Expression]
-ConverterDict = Dict[int, Tuple[List[Converter], T_Expression]]
+ConvertersExpressionPair = Tuple[List[Converter], T_SupportsConversion]
+ConverterDict = Dict[int, Tuple[List[Converter], T_SupportsConversion]]
 
 
-def get_converters(expression: T_Expression, model: Model) -> ConvertersExpressionPair:
+def get_converters(expression: T_SupportsConversion, model: Model) -> ConvertersExpressionPair:
     db = get_db(model)
     if isinstance(model, Model):
         model = model._meta.model
@@ -29,7 +30,7 @@ def get_converters(expression: T_Expression, model: Model) -> ConvertersExpressi
 
 @lru_cache()
 def get_converters_with_compiler(
-    expression: T_Expression,
+    expression: T_SupportsConversion,
     compiler: SQLCompiler
 ) -> ConvertersExpressionPair:
     converters = compiler.get_converters([expression])  # type: ConverterDict
@@ -64,13 +65,13 @@ else:
         return value
 
 
-def get_db(obj: Any) -> str:
+def get_db(obj: Union[Any, Type[Any]]) -> str:
     if isinstance(obj, Model):
         return cast(str, router.db_for_read(
             obj._meta.model,
             hints=dict(instance=obj),
         ))
-    elif issubclass(obj, Model):
+    elif isinstance(obj, type) and issubclass(obj, Model):
         return cast(str, router.db_for_read(obj))
     return DEFAULT_DB_ALIAS
 
@@ -102,10 +103,10 @@ def _get_fake_query(model_or_none: Optional[Type[Model]]) -> FakeQuery:
     return FakeQuery(model=model_or_none)
 
 
-def get_fake_query(obj: Any) -> FakeQuery:
+def get_fake_query(obj: Union[Any, Type[Any]]) -> FakeQuery:
     if isinstance(obj, Model):
         model = obj._meta.model
-    elif issubclass(obj, Model):
+    elif isinstance(obj, type) and issubclass(obj, Model):
         model = obj
     else:
         model = None
