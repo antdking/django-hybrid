@@ -1,4 +1,5 @@
 import copy
+import sys
 from typing import TYPE_CHECKING, Any, Generic, Tuple, TypeVar, Type, Dict, Optional, ClassVar, cast
 
 from dj_hybrid.types import SupportsPython
@@ -13,6 +14,19 @@ if TYPE_CHECKING:
 
 T_Q = TypeVar('T_Q', bound='Q')
 T_Wrapable = TypeVar('T_Wrapable', bound=Wrapable)
+
+WORKAROUND_498 = False
+if hasattr(Generic, '__copy__'):
+    # https://github.com/python/typing/issues/498
+    WORKAROUND_498 = True
+
+if WORKAROUND_498:
+    if sys.version_info >= (3, 6):
+        def reconstruct(instance: Any, reduced: Any) -> Any:
+            return copy._reconstruct(instance, None, *reduced)  # type: ignore
+    else:
+        def reconstruct(instance: Any, reduced: Any) -> Any:
+            return copy._reconstruct(instance, reduced, 0)
 
 
 class FakeQuery:
@@ -57,6 +71,15 @@ class ExpressionWrapper(Wrapper, Generic[T_Wrapable]):
         super().__init__(expression)
         self.expression = expression
         self._is_resolved = False
+
+    if WORKAROUND_498:
+        # https://github.com/python/typing/issues/498
+        # This is a terrible hack, don't copy it.
+        def __copy__(self) -> 'ExpressionWrapper[T_Wrapable]':
+            # we're partially copying `copy` here, to bypass the above mentioned bug.
+
+            rv = self.__reduce_ex__(4)
+            return cast(ExpressionWrapper[T_Wrapable], reconstruct(self, rv))
 
     def resolve_expression(self, query: FakeQuery) -> SupportsPython:
         if self._is_resolved:

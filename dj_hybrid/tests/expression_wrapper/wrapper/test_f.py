@@ -52,7 +52,7 @@ class TestCombining(Base):
 
 
 class TestCasting(Base):
-    expression = Cast(F('int_field'), CharField())
+    expression = Cast(F('int_field'), CharField(max_length=2))
     python_value = "50"
     fixture = dict(
         int_field=50
