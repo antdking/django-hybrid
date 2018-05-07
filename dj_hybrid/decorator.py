@@ -3,22 +3,23 @@ from typing import Any, Callable, Optional, Type, TypeVar, Union, cast, overload
 from django.db.models import ExpressionWrapper, Expression, F
 from django.db.models.constants import LOOKUP_SEP
 
-from dj_hybrid.types import Slots
-from .expression_wrapper.types import Wrapable
+from dj_hybrid.expression_wrapper.convert import get_fake_query, get_converters, apply_converters
+from .expression_wrapper.types import Wrapable, SupportsResolving, SupportsConversion, Wrapper
 from .expression_wrapper.wrap import wrap
 from .types import SupportsPython
 
 T = TypeVar('T')
 V_Class = TypeVar('V_Class', bound=Wrapable)
 HybridMethodType = Callable[[Type[T]], V_Class]
+InstanceMethodCacheType = Tuple[SupportsPython, SupportsConversion]
 
 
-class HybridProperty(classmethod):
+class HybridProperty:
     __slots__ = (
         'func',
         'name',
         '_cached_expression',
-        '_cached_wrapped',
+        '_instance_method_cache',
     )
     is_hybrid = True
 
@@ -26,11 +27,11 @@ class HybridProperty(classmethod):
                  func: HybridMethodType,
                  *,
                  name: Optional[str] = None) -> None:
-        super().__init__(func)
+        super().__init__()
         self.func = func
         self.name = name or func.__name__
         self._cached_expression = None  # type: Optional['HybridWrapper']
-        self._cached_wrapped = None  # type: Optional[SupportsPython]
+        self._instance_method_cache = None  # type: Optional[InstanceMethodCacheType]
 
     @overload
     def __get__(self, instance: T, owner: Optional[Type[T]] = None) -> Any:
@@ -47,7 +48,7 @@ class HybridProperty(classmethod):
 
     def reset_cache(self) -> None:
         self._cached_expression = None
-        self._cached_wrapped = None
+        self._instance_method_cache = None
 
     def __del__(self) -> None:
         self.reset_cache()
@@ -60,12 +61,29 @@ class HybridProperty(classmethod):
             self._cached_expression = HybridWrapper(self.func(owner), self.name, owner)
         return self._cached_expression
 
+    def _populate_instance_method_cache(self, instance: T) -> None:
+        wrapped = wrap(self.func(type(instance)))
+        if isinstance(wrapped, SupportsResolving):
+            wrapped = wrapped.resolve_expression(get_fake_query(instance))
+        if isinstance(wrapped, SupportsConversion):
+            for_conversion = wrapped
+        elif isinstance(wrapped, Wrapper):
+            for_conversion = wrapped.get_for_conversion()
+        else:
+            raise ValueError("Can't get expression for conversion")
+        self._instance_method_cache = wrapped, for_conversion
+
     def instance_method_behaviour(self, instance: T) -> Any:
-        if self._cached_wrapped is None:
-            self._cached_wrapped = wrap(
-                self.func(type(instance))
-            )
-        return self._cached_wrapped.as_python(instance)
+        if self._instance_method_cache is None:
+            self._populate_instance_method_cache(instance)
+        if self._instance_method_cache is None:
+            raise Exception("Unable to generate expression")
+
+        expression, converter_expression = self._instance_method_cache
+        value = expression.as_python(instance)
+        converters = get_converters(converter_expression, instance)
+        value = apply_converters(value, converters, instance)
+        return value
 
 
 class HybridWrapper(ExpressionWrapper):  # type: ignore

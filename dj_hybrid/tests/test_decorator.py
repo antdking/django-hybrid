@@ -92,19 +92,19 @@ def test_caching_behaviour__instance(mocker):
     descriptor = SomeClass.__dict__['char_field_alias']
 
     first = instance.char_field_alias
-    first_cache = descriptor._cached_wrapped
+    first_cache = descriptor._instance_method_cache
     second = instance.char_field_alias
-    second_cache = descriptor._cached_wrapped
+    second_cache = descriptor._instance_method_cache
 
     assert first is second
     assert first_cache is second_cache
     assert mocked_wrap.call_count == 1
 
     SomeClass.__dict__['char_field_alias'].reset_cache()
-    assert not descriptor._cached_wrapped
+    assert not descriptor._instance_method_cache
 
     third = instance.char_field_alias
-    third_cache = descriptor._cached_wrapped
+    third_cache = descriptor._instance_method_cache
     assert first_cache is not third_cache
     assert are_equal(first_cache, third_cache)
     assert first is third
