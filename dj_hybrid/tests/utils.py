@@ -1,13 +1,13 @@
 from collections import Iterable
 from contextlib import contextmanager
 from functools import singledispatch
-from itertools import combinations
+from itertools import combinations, chain
 
 from typing import Union, Type, Any, Sequence, Callable, TypeVar
 
 import django
 from django.db.models import Lookup, Expression, Field
-from django.db.models.expressions import F
+from django.db.models.expressions import F, Col
 from django.utils.functional import cached_property
 
 from dj_hybrid.expander import Not, Combineable
@@ -39,6 +39,7 @@ def are_equal(*vals: T) -> bool:
 
 
 @are_equal.register(list)
+@are_equal.register(tuple)
 def iterable_equal(*vals: T) -> bool:
     return all(
         type(v1) is type(v2)
@@ -76,14 +77,28 @@ are_equal.register(Lookup, compare_factory('lhs', 'rhs', 'bilateral_transforms')
 are_equal.register(Not, compare_factory('expression'))
 
 
+_IGNORED_ATTRIBUTES = {
+    '__dict__',
+    '_constructor_args',
+}
+
 def compare_dicts(*vals: T):
     # This isn't strictly safe, however for our usecase, it's fine.
     # We need to not compare anything that's cached, as the other may also be cached
     cached_properties = set(k for k, v in type(vals[0]).__dict__.items() if isinstance(v, cached_property))
-    comparer = compare_factory(*(set(vals[0].__dict__) - cached_properties))
+    attributes = set(chain.from_iterable(getattr(cls, '__slots__', ()) for cls in type(vals[0]).__mro__))
+    if hasattr(vals[0], '__dict__'):
+        check_dict = lambda v1, v2: len(set(v1.__dict__) - cached_properties) == len(set(v2.__dict__) - cached_properties)
+        attributes |= set(vals[0].__dict__)
+    else:
+        check_dict = lambda v1, v2: True
+
+    attributes -= cached_properties
+    attributes -= _IGNORED_ATTRIBUTES
+    comparer = compare_factory(*attributes)
     return all(
         type(v1) is type(v2)
-        and len(set(v1.__dict__) - cached_properties) == len(set(v2.__dict__) - cached_properties)
+        and check_dict(v1, v2)
         and comparer(v1, v2)
         for v1, v2 in combinations(vals, 2)
     )
@@ -92,23 +107,27 @@ def compare_dicts(*vals: T):
 are_equal.register(ExpressionWrapper, compare_dicts)
 
 
+@are_equal.register(Field)
+def compare_field(*vals: T) -> bool:
+    return all(
+        type(v1) is type(v2)
+        and v1.deconstruct()[1] == v2.deconstruct()[1]
+        for v1, v2 in combinations(vals, 2)
+    )
+
+
+are_equal.register(Col, compare_factory('alias', 'target', '_output_field_or_none'))
+
+
 if django.VERSION < (2,):
     are_equal.register(F, compare_factory('name'))
 
     @are_equal.register(Expression)
     def compare_expression(*vals: T) -> bool:
-        compare_output_field = compare_factory('_output_field')
+        compare_output_field = compare_factory('_output_field_or_none')
         return all(
             type(v1) is type(v2)
             and compare_output_field(v1, v2)
             and compare_dicts(v1, v2)
-            for v1, v2 in combinations(vals, 2)
-        )
-
-    @are_equal.register(Field)
-    def compare_field(*vals: T) -> bool:
-        return all(
-            type(v1) is type(v2)
-            and v1.deconstruct()[1] == v2.deconstruct()[1]
             for v1, v2 in combinations(vals, 2)
         )
