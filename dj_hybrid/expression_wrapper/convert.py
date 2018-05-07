@@ -73,7 +73,7 @@ def get_db(obj: Union[Any, Type[Any]]) -> str:
         ))
     elif isinstance(obj, type) and issubclass(obj, Model):
         return cast(str, router.db_for_read(obj))
-    return DEFAULT_DB_ALIAS
+    return cast(str, DEFAULT_DB_ALIAS)
 
 
 def get_connection(db: str) -> BaseDatabaseWrapper:
