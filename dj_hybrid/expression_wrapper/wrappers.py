@@ -1,6 +1,8 @@
+import decimal
 import operator
 import re
 import statistics
+from contextlib import suppress
 from datetime import date, datetime
 from typing import (
     Any,
@@ -16,10 +18,11 @@ from typing import (
     TypeVar,
     Union,
     cast,
-    MutableMapping)
+    MutableMapping, ClassVar)
 from weakref import WeakKeyDictionary
 
 import django
+from django.core.exceptions import FieldError
 from django.db.models import (
     Aggregate,
     Avg,
@@ -46,7 +49,7 @@ from django.db.models.expressions import (
     DurationValue,
     ExpressionWrapper as DjangoExpressionWrapper,
     Random,
-)
+    Expression)
 from django.db.models.functions import Cast, Coalesce, Concat, ConcatPair, Greatest, Least, Length, Lower, Now, Upper
 from django.db.models.lookups import (
     Contains,
@@ -72,8 +75,11 @@ from django.db.models.lookups import (
 )
 from django.utils import timezone
 from django.utils.crypto import random
+from django.utils.dateparse import parse_date, parse_datetime, parse_duration, parse_time
+from django.utils.encoding import force_bytes, force_text
 
 from dj_hybrid.expander import expand_query
+from dj_hybrid.expression_wrapper.convert import get_connection, get_db
 from dj_hybrid.expression_wrapper.types import SupportsResolving
 from dj_hybrid.resolve import get_resolver
 from dj_hybrid.types import SupportsPython, SupportsPythonComparison, Slots
@@ -112,15 +118,42 @@ There are some main types of expressions in Django:
     If statements.
 """
 
+_UNSET = object()
+
+
+def _get_output_field(expression: Expression) -> Optional[Field]:
+    with suppress(FieldError):
+        return expression.output_field
+
 
 @register(Value)
 @register(DurationValue)
 class ValueWrapper(ExpressionWrapper[Union[Value, DurationValue]]):
-    __slots__ = ()  # type: Slots
+    __slots__ = (
+        '_resolved_value',
+    )  # type: Slots
+
+    def __init__(self, expression: Union[Value, DurationValue]) -> None:
+        super().__init__(expression)
+        self._resolved_value = _UNSET  # type: Any
 
     def as_python(self, obj: Any) -> Any:
-        value = self.expression.value
-        return value
+        return self.get_value()
+
+    def get_value(self) -> Any:
+        if self._resolved_value is not _UNSET:
+            return self._resolved_value
+        return self.expression.value
+
+    def resolve_expression(self, query: FakeQuery) -> 'ValueWrapper':
+        c = cast(ValueWrapper, super().resolve_expression(query))
+        value = c.expression.value
+        output_field = _get_output_field(c.expression)
+        if output_field:
+            connection = get_connection(get_db(query.model))
+            value = output_field.get_db_prep_value(value, connection)
+        c._resolved_value = value
+        return c
 
 
 @register(CombinedExpression)
@@ -225,11 +258,12 @@ T_Func = TypeVar('T_Func', bound=Func)
 
 class FuncWrapper(ExpressionWrapper[Func], Generic[T_Func]):
     __slots__ = ()  # type: Slots
-    op = None  # type: Callable
+    op = None  # type: ClassVar[Callable]
 
     def as_python(self, obj: Any) -> Any:
         input_values = self.get_source_values(obj)
-        output_value = type(self).op(*input_values)
+        op = self.get_op()
+        output_value = op(*input_values)
         return output_value
 
     def get_source_values(self, obj: Any) -> Generator[Any, None, None]:
@@ -237,13 +271,16 @@ class FuncWrapper(ExpressionWrapper[Func], Generic[T_Func]):
             wrapped = wrap(expression)
             yield wrapped.as_python(obj)
 
+    def get_op(self) -> Callable:
+        return type(self).op
+
 
 T_Aggregate = TypeVar('T_Aggregate', bound=Aggregate)
 
 
 class AggregateWrapper(FuncWrapper[Aggregate], Generic[T_Aggregate]):
     __slots__ = ()  # type: Slots
-    op = None  # type: Callable[[Iterable[Any]], Any]
+    op = None  # type: ClassVar[Callable[[Iterable[Any]], Any]]
 
 
 @register(Avg)
@@ -295,9 +332,41 @@ Cast_T = TypeVar('Cast_T')
 class CastWrapper(FuncWrapper[Cast]):
     __slots__ = ()  # type: Slots
 
-    @staticmethod
-    def op(value: Cast_T) -> Cast_T:
-        return value
+    _ops = {
+        'AutoField': int,
+        'BigAutoField': int,
+        'BinaryField': force_bytes,
+        'BooleanField': bool,
+        'CharField': force_text,
+        'DateField': parse_date,
+        'DateTimeField': parse_datetime,
+        'DecimalField': decimal.Decimal,
+        'DurationField': parse_duration,
+        'FileField': force_text,
+        'FilePathField': force_text,
+        'FloatField': float,
+        'IntegerField': int,
+        'BigIntegerField': int,
+        'IPAddressField': force_text,
+        'GenericIPAddressField': force_text,
+        'NullBooleanField': bool,  # TODO: make this nullable
+        'OneToOneField': int,
+        'PositiveIntegerField': int,
+        'PositiveSmallIntegerField': int,
+        'SlugField': force_text,
+        'SmallIntegerField': int,
+        'TextField': force_text,
+        'TimeField': parse_time,
+        'UUIDField': str,
+    }  # type: Dict[str, Callable[[Any], Any]]
+
+    def get_op(self) -> Callable[[Any], Any]:
+        output_field = _get_output_field(self.expression)
+        if output_field:
+            internal_type = output_field.get_internal_type()
+        else:
+            internal_type = None
+        return self._ops.get(internal_type, lambda x: x)
 
 
 Coalesce_T = TypeVar('Coalesce_T')
@@ -348,7 +417,7 @@ T_Transform = TypeVar('T_Transform', bound=Transform)
 
 class TransformWrapper(FuncWrapper[Transform], Generic[T_Transform]):
     __slots__ = ()  # type: Slots
-    op = None  # type: Callable[[Any], Any]
+    op = None  # type: ClassVar[Callable[[Any], Any]]
 
 
 @register(Now)
