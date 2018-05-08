@@ -99,7 +99,7 @@ class A(Model):
 A.objects.annotate(A.val1, A.val2)
 # or:
 A.objects.annotate(*A.val2.with_dependencies())
-# equivilant
+# equivalent
 A.objects.annotate(
   val1=Value(20),
   val2=F('val1') + Value(40),
